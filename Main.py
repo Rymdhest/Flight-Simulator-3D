@@ -1,5 +1,6 @@
 import pygame
 import time
+import random
 from math import pi
 import numpy
 from pygame.math import clamp
@@ -14,10 +15,14 @@ height = 800
 display = pygame.display.set_mode((width, height))
 far_plane = 100
 near_plane = 1
-
+delta = 0
+last_frame_time = time.time()
+last_second_time = time.time()
+frames_current_second = 0
+frames_last_second = 0
 
 class Model:
-    def __init__(self, position, vertices, colors=array([0.0, 0.0, 0.0]), rotation=array([0.0, 0.0, 0.0]),
+    def __init__(self, position, vertices, colors, rotation=array([0.0, 0.0, 0.0]),
                  scale=array([1.0, 1.0, 1.0])):
         self.position = position
         self.scale = scale
@@ -40,10 +45,26 @@ class Camera:
 
 
 camera = Camera()
-camera.position[2] = 2
+camera.position[2] = 10
 models = []
 
-
+def calcDelta():
+    global last_frame_time
+    global last_second_time
+    global frames_current_second
+    global delta
+    current_frame_time = time.time()
+    delta = current_frame_time - last_frame_time
+    if time.time() - last_second_time >= 1:
+        frames_last_second = frames_current_second
+        last_second_time = current_frame_time
+        frames_current_second = 0
+        # print("FPS: " + frames_last_second.__str__())
+        # print("Delta: " + delta.__str__())
+        pygame.display.set_caption('3D test ' + frames_last_second.__str__() + "fps")
+    frames_current_second += 1
+    last_frame_time = current_frame_time
+    delta *= 5
 def handleInput():
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -52,7 +73,6 @@ def handleInput():
     keys = pygame.key.get_pressed()
     speed = 1.5
     turnspeed = 0.6
-    delta = 0.01
     if keys[K_w]:
         camera.position[0] -= speed * delta * sin(-camera.rotation[1])
         camera.position[2] -= speed * delta * cos(-camera.rotation[1])
@@ -124,6 +144,7 @@ projection_matrix = createProjectionMatrix()
 
 
 def fromWorldToScreen(point_3D):
+    print(point_3D)
     d4_world_position = array([point_3D[0], point_3D[1], point_3D[2], 1])
     clipspace_position = projection_matrix @ view_matrix @ d4_world_position
     NDC_space = array([clipspace_position[0], clipspace_position[1], clipspace_position[2]]) / clipspace_position[3]
@@ -137,6 +158,7 @@ def fromWorldToScreen(point_3D):
 def update():
     global view_matrix
     view_matrix = createViewMatrix(camera)
+    calcDelta()
 
 
 def render():
@@ -165,13 +187,41 @@ def render():
 
 
 def program():
-    vertices = array([[0.0, 0.0, 0.0], [3.0, 0.0, 0.0], [0.0, -2.0, 0.0],
-                      [3.0, 0.0, 0.0], [3.0, 0.0, -3.0], [3.0, -2.0, -3.0]])
-    colors = array([[255, 0, 0],
-                    [255, 0, 255]])
-    position = array([0.0, 0.0, 0.0])
-    cube = Model(position, vertices, colors)
-    models.append(cube)
+    for i in range(2):
+        position = array(
+            [random.uniform(-10.0, 10.0), random.uniform(-10.0, 10.0), random.uniform(-10.0, 10.0)])
+        r = random.uniform(1.0, 3.0)
+        p = array([[-r, r, r], [r, r, r], [r, r, -r], [-r, r, -r],
+                   [-r, -r, r], [r, -r, r], [r, -r, -r], [-r, -r, -r]])
+
+        vertices = array([p[0], p[4], p[5],
+                          p[0], p[5], p[1],
+                          p[1], p[5], p[6],
+                          p[1], p[6], p[2],
+                          p[3], p[2], p[6],
+                          p[3], p[6], p[7],
+                          p[3], p[0], p[1],
+                          p[3], p[1], p[2],
+                          p[7], p[5], p[4],
+                          p[7], p[6], p[5]])
+
+        print(vertices)
+        color = array([255.0, 0.0, 0.0])
+
+        colors = array([color,
+                        color,
+                        color,
+                        color,
+                        color,
+                        color,
+                        color,
+                        color,
+                        color,
+                        color])
+
+        cube = Model(position, vertices, colors)
+        models.append(cube)
+
     while run:
         handleInput()
         update()
