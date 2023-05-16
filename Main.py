@@ -23,6 +23,11 @@ class Model:
         self.rotation = rotation
 
 
+class Polygon_2D:
+    def __init__(self, vertices, color, depth):
+        self.vertices = vertices
+        self.color = color
+        self.depth = depth
 class Camera:
     def __init__(self):
         self.position = array([0.0, 0.0, 0.0])
@@ -121,7 +126,7 @@ def fromWorldToScreen(point_3D):
     x = ((NDC_space[0] + 1) / 2) * display.get_width()
     y = ((NDC_space[1] + 1) / 2) * display.get_height()
 
-    screen_space = array([x, y])
+    screen_space = array([x, y, clipspace_position[2]])
     return screen_space
 
 
@@ -131,27 +136,38 @@ def update():
 
 
 def render():
+    polygons = []
     display.fill([255, 255, 255])
+    for model in models:
+        for i in range(int(len(model.vertices)/3)):
+            v1 = fromWorldToScreen(model.vertices[i*3+0])
+            v2 = fromWorldToScreen(model.vertices[i*3+1])
+            v3 = fromWorldToScreen(model.vertices[i*3+2])
+            depth = -(v1[2]+v2[2]+v3[2])/3
+            vertices = array([v1[0:2], v2[0:2], v3[0:2]])
+            colors = model.colors[i]
 
-    vertices = array([[0.0, 0.0, 0.0], [3.0, 0.0, 0.0], [0.0, -2.0, 0.0]])
-    color = array([255, 0, 0])
-    p1_2D = fromWorldToScreen(vertices[0])
-    p2_2D = fromWorldToScreen(vertices[1])
-    p3_2D = fromWorldToScreen(vertices[2])
-    pygame.draw.polygon(display, color, array([p1_2D, p2_2D, p3_2D]))
+            polygons.append(Polygon_2D(vertices, colors, depth))
 
-    vertices = array([[3.0, 0.0, 0.0], [3.0, 0.0, -3.0], [3.0, -2.0, -3.0]])
-    color = array([255, 255, 0])
-    p1_2D = fromWorldToScreen(vertices[0])
-    p2_2D = fromWorldToScreen(vertices[1])
-    p3_2D = fromWorldToScreen(vertices[2])
-    pygame.draw.polygon(display, color, array([p1_2D, p2_2D, p3_2D]))
+    polygons.sort(key=lambda x: x.depth)
+
+    for polygon in polygons:
+        print(polygon.vertices)
+        pygame.draw.polygon(display, polygon.color, polygon.vertices)
+
 
     pygame.display.update()
     pygame.display.flip()
 
 
 def program():
+    vertices = array([[0.0, 0.0, 0.0], [3.0, 0.0, 0.0], [0.0, -2.0, 0.0],
+                      [3.0, 0.0, 0.0], [3.0, 0.0, -3.0], [3.0, -2.0, -3.0]])
+    colors = array([[255, 0, 0],
+                  [255, 0, 255]])
+    position = array([0.0, 0.0, 0.0])
+    cube = Model(position, vertices, colors)
+    models.append(cube)
     while run:
         handleInput()
         update()
