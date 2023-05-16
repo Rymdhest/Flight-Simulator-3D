@@ -6,11 +6,14 @@ from pygame.math import clamp
 from numpy import array
 from numpy import cos
 from numpy import sin
-from pygame.locals import * ## allt för att hämta konstanter till varje tangent
+from pygame.locals import *  ## allt för att hämta konstanter till varje tangent
+
 run = True
 width = 800
 height = 800
 display = pygame.display.set_mode((width, height))
+far_plane = 100
+near_plane = 1
 
 
 class Model:
@@ -28,6 +31,8 @@ class Polygon_2D:
         self.vertices = vertices
         self.color = color
         self.depth = depth
+
+
 class Camera:
     def __init__(self):
         self.position = array([0.0, 0.0, 0.0])
@@ -69,19 +74,20 @@ def handleInput():
     if keys[K_f]:
         camera.rotation[0] -= turnspeed * delta
 
+
 def createRotationMatrix(rotation):
     rotation_x_matrix = array([[1, 0, 0, 0],
-                                  [0, cos(rotation[0]), -sin(rotation[0]), 0],
-                                  [0, sin(rotation[0]), cos(rotation[0]), 0],
-                                  [0, 0, 0, 1]])
+                               [0, cos(rotation[0]), -sin(rotation[0]), 0],
+                               [0, sin(rotation[0]), cos(rotation[0]), 0],
+                               [0, 0, 0, 1]])
     rotation_y_matrix = array([[cos(rotation[1]), 0, sin(rotation[1]), 0],
-                                  [0, 1, 0, 0],
-                                  [-sin(rotation[1]), 0, cos(rotation[1]), 0],
-                                  [0, 0, 0, 0]])
+                               [0, 1, 0, 0],
+                               [-sin(rotation[1]), 0, cos(rotation[1]), 0],
+                               [0, 0, 0, 0]])
     rotation_z_matrix = array([[cos(rotation[2]), -sin(rotation[2]), 0, 0],
-                                  [sin(rotation[2]), cos(rotation[2]), 0, 0],
-                                  [0, 0, 1, 0],
-                                  [0, 0, 0, 0]])
+                               [sin(rotation[2]), cos(rotation[2]), 0, 0],
+                               [0, 0, 1, 0],
+                               [0, 0, 0, 0]])
     return rotation_x_matrix @ rotation_y_matrix @ rotation_z_matrix
 
 
@@ -99,8 +105,6 @@ def createViewMatrix(camera):
 
 
 def createProjectionMatrix():
-    far_plane = 100
-    near_plane = 1
     field_of_view = pi / 2  # 90 grader
     aspect_ratio = display.get_width() / display.get_height()
     y_scale = 1 / numpy.arctan(field_of_view / 2)
@@ -109,9 +113,9 @@ def createProjectionMatrix():
     A = -((far_plane + near_plane) / frustum_length)
     B = -((2 * far_plane * near_plane) / frustum_length)
     projection_matrix = array([[x_scale, 0, 0, 0],
-                                  [0, y_scale, 0, 0],
-                                  [0, 0, A, B],
-                                  [0, 0, -1, 0]])
+                               [0, y_scale, 0, 0],
+                               [0, 0, A, B],
+                               [0, 0, -1, 0]])
     return projection_matrix
 
 
@@ -139,22 +143,22 @@ def render():
     polygons = []
     display.fill([255, 255, 255])
     for model in models:
-        for i in range(int(len(model.vertices)/3)):
-            v1 = fromWorldToScreen(model.vertices[i*3+0])
-            v2 = fromWorldToScreen(model.vertices[i*3+1])
-            v3 = fromWorldToScreen(model.vertices[i*3+2])
-            depth = -(v1[2]+v2[2]+v3[2])/3
-            vertices = array([v1[0:2], v2[0:2], v3[0:2]])
-            colors = model.colors[i]
-
-            polygons.append(Polygon_2D(vertices, colors, depth))
+        for i in range(int(len(model.vertices) / 3)):
+            v1 = fromWorldToScreen(model.vertices[i * 3 + 0])
+            v2 = fromWorldToScreen(model.vertices[i * 3 + 1])
+            v3 = fromWorldToScreen(model.vertices[i * 3 + 2])
+            depth = -(v1[2] + v2[2] + v3[2]) / 3
+            if v1[2] < near_plane or v2[2] < near_plane or v3[2] < near_plane:
+                continue
+            else:
+                vertices = array([v1[0:2], v2[0:2], v3[0:2]])
+                colors = model.colors[i]
+                polygons.append(Polygon_2D(vertices, colors, depth))
 
     polygons.sort(key=lambda x: x.depth)
 
     for polygon in polygons:
-        print(polygon.vertices)
         pygame.draw.polygon(display, polygon.color, polygon.vertices)
-
 
     pygame.display.update()
     pygame.display.flip()
@@ -164,7 +168,7 @@ def program():
     vertices = array([[0.0, 0.0, 0.0], [3.0, 0.0, 0.0], [0.0, -2.0, 0.0],
                       [3.0, 0.0, 0.0], [3.0, 0.0, -3.0], [3.0, -2.0, -3.0]])
     colors = array([[255, 0, 0],
-                  [255, 0, 255]])
+                    [255, 0, 255]])
     position = array([0.0, 0.0, 0.0])
     cube = Model(position, vertices, colors)
     models.append(cube)
