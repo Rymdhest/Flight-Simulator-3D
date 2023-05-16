@@ -1,3 +1,4 @@
+import numpy as np
 import pygame
 import time
 import random
@@ -10,8 +11,8 @@ from numpy import sin
 from pygame.locals import *  ## allt för att hämta konstanter till varje tangent
 
 run = True
-width = 800
-height = 800
+width = 1800
+height = 950
 display = pygame.display.set_mode((width, height))
 far_plane = 100
 near_plane = 1
@@ -21,14 +22,14 @@ last_second_time = time.time()
 frames_current_second = 0
 frames_last_second = 0
 
+
 class Model:
-    def __init__(self, position, vertices, colors, rotation=array([0.0, 0.0, 0.0]),
-                 scale=array([1.0, 1.0, 1.0])):
+    def __init__(self, position, vertices, colors):
         self.position = position
-        self.scale = scale
+        self.scale = array([1.0, 1.0, 1.0])
         self.vertices = vertices
         self.colors = colors
-        self.rotation = rotation
+        self.rotation = array([0.0, 0.0, 0.0])
 
 
 class Polygon_2D:
@@ -48,6 +49,7 @@ camera = Camera()
 camera.position[2] = 10
 models = []
 
+
 def calcDelta():
     global last_frame_time
     global last_second_time
@@ -59,12 +61,12 @@ def calcDelta():
         frames_last_second = frames_current_second
         last_second_time = current_frame_time
         frames_current_second = 0
-        # print("FPS: " + frames_last_second.__str__())
-        # print("Delta: " + delta.__str__())
-        pygame.display.set_caption('3D test ' + frames_last_second.__str__() + "fps")
+        pygame.display.set_caption("Flight-Simulator-3D " + frames_last_second.__str__() + "fps")
     frames_current_second += 1
     last_frame_time = current_frame_time
     delta *= 5
+
+
 def handleInput():
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -144,9 +146,8 @@ projection_matrix = createProjectionMatrix()
 
 
 def fromWorldToScreen(point_3D):
-    print(point_3D)
-    d4_world_position = array([point_3D[0], point_3D[1], point_3D[2], 1])
-    clipspace_position = projection_matrix @ view_matrix @ d4_world_position
+    d4_world_position = array([point_3D[0], point_3D[1], point_3D[2]])
+    clipspace_position = projection_matrix @ view_matrix @ point_3D
     NDC_space = array([clipspace_position[0], clipspace_position[1], clipspace_position[2]]) / clipspace_position[3]
     x = ((NDC_space[0] + 1) / 2) * display.get_width()
     y = ((NDC_space[1] + 1) / 2) * display.get_height()
@@ -164,11 +165,16 @@ def update():
 def render():
     polygons = []
     display.fill([255, 255, 255])
+
     for model in models:
-        for i in range(int(len(model.vertices) / 3)):
-            v1 = fromWorldToScreen(model.vertices[i * 3 + 0])
-            v2 = fromWorldToScreen(model.vertices[i * 3 + 1])
-            v3 = fromWorldToScreen(model.vertices[i * 3 + 2])
+        model.rotation += delta * 0.1
+        transformed_vertices = numpy.append(model.vertices, np.ones((len(model.vertices), 1)),axis=1)
+        transformed_vertices = transformed_vertices @ createRotationMatrix(model.rotation)
+        transformed_vertices = transformed_vertices + np.append(model.position, 1.0)
+        for i in range(int(len(transformed_vertices) / 3)):
+            v1 = fromWorldToScreen(transformed_vertices[i * 3 + 0])
+            v2 = fromWorldToScreen(transformed_vertices[i * 3 + 1])
+            v3 = fromWorldToScreen(transformed_vertices[i * 3 + 2])
             depth = -(v1[2] + v2[2] + v3[2]) / 3
             if v1[2] < near_plane or v2[2] < near_plane or v3[2] < near_plane:
                 continue
@@ -187,7 +193,7 @@ def render():
 
 
 def program():
-    for i in range(2):
+    for i in range(50):
         position = array(
             [random.uniform(-10.0, 10.0), random.uniform(-10.0, 10.0), random.uniform(-10.0, 10.0)])
         r = random.uniform(1.0, 3.0)
@@ -205,7 +211,6 @@ def program():
                           p[7], p[5], p[4],
                           p[7], p[6], p[5]])
 
-        print(vertices)
         color = array([255.0, 0.0, 0.0])
 
         colors = array([color,
@@ -219,8 +224,7 @@ def program():
                         color,
                         color])
 
-        cube = Model(position, vertices, colors)
-        models.append(cube)
+        models.append(Model(position, vertices, colors))
 
     while run:
         handleInput()
