@@ -30,7 +30,12 @@ class Model:
         self.vertices = vertices
         self.colors = colors
         self.rotation = array([0.0, 0.0, 0.0])
-
+        self.normals = np.zeros((int(len(vertices)/3), 3))
+        for i in range(len(self.normals)):
+            v1 = vertices[i*3+1] - vertices[i*3+0]
+            v2 = vertices[i*3+2] - vertices[i*3+0]
+            normal = np.cross(v1, v2)
+            self.normals[i] = normal / np.linalg.norm(normal)
 
 class Polygon_2D:
     def __init__(self, vertices, color, depth):
@@ -165,12 +170,16 @@ def update():
 def render():
     polygons = []
     display.fill([255, 255, 255])
-
+    light_direction = array([1.0, -1.0, 1.0])
+    light_direction = light_direction / np.linalg.norm(light_direction)
     for model in models:
         model.rotation += delta * 0.1
         transformed_vertices = numpy.append(model.vertices, np.ones((len(model.vertices), 1)),axis=1)
         transformed_vertices = transformed_vertices @ createRotationMatrix(model.rotation)
         transformed_vertices = transformed_vertices + np.append(model.position, 1.0)
+
+        transformed_normals = numpy.append(model.normals, np.ones((len(model.normals), 1)),axis=1)
+        transformed_normals = transformed_normals @ createRotationMatrix(model.rotation)
         for i in range(int(len(transformed_vertices) / 3)):
             v1 = fromWorldToScreen(transformed_vertices[i * 3 + 0])
             v2 = fromWorldToScreen(transformed_vertices[i * 3 + 1])
@@ -180,7 +189,10 @@ def render():
                 continue
             else:
                 vertices = array([v1[0:2], v2[0:2], v3[0:2]])
-                colors = model.colors[i]
+
+                lighting = np.dot(transformed_normals[i][0:3], light_direction)
+                lighting = max(lighting, 0.0)
+                colors = model.colors[i]*lighting
                 polygons.append(Polygon_2D(vertices, colors, depth))
 
     polygons.sort(key=lambda x: x.depth)
@@ -193,7 +205,7 @@ def render():
 
 
 def program():
-    for i in range(50):
+    for i in range(15):
         position = array(
             [random.uniform(-10.0, 10.0), random.uniform(-10.0, 10.0), random.uniform(-10.0, 10.0)])
         r = random.uniform(1.0, 3.0)
@@ -206,23 +218,29 @@ def program():
                           p[1], p[6], p[2],
                           p[3], p[2], p[6],
                           p[3], p[6], p[7],
+                          p[0], p[7], p[4],
+                          p[0], p[3], p[7],
                           p[3], p[0], p[1],
                           p[3], p[1], p[2],
                           p[7], p[5], p[4],
                           p[7], p[6], p[5]])
 
-        color = array([255.0, 0.0, 0.0])
+        color1 = array([255.0, 0.0, 0.0])
+        color2 = array([0.0, 255.0, 0.0])
+        color3 = array([0.0, 0.0, 255.0])
 
-        colors = array([color,
-                        color,
-                        color,
-                        color,
-                        color,
-                        color,
-                        color,
-                        color,
-                        color,
-                        color])
+        colors = array([color1,
+                        color1,
+                        color3,
+                        color3,
+                        color2,
+                        color2,
+                        color1,
+                        color1,
+                        color3,
+                        color3,
+                        color1,
+                        color1])
 
         models.append(Model(position, vertices, colors))
 
