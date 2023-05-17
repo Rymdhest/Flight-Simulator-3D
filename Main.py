@@ -15,7 +15,7 @@ width = 1800
 height = 950
 display = pygame.display.set_mode((width, height))
 far_plane = 100
-near_plane = 1
+near_plane = 3
 delta = 0
 last_frame_time = time.time()
 last_second_time = time.time()
@@ -51,7 +51,7 @@ class Camera:
 
 
 camera = Camera()
-camera.position[2] = 10
+#camera.position[2] = 10
 models = []
 
 
@@ -63,6 +63,7 @@ def calcDelta():
     current_frame_time = time.time()
     delta = current_frame_time - last_frame_time
     if time.time() - last_second_time >= 1:
+        global frames_last_second
         frames_last_second = frames_current_second
         last_second_time = current_frame_time
         frames_current_second = 0
@@ -93,13 +94,13 @@ def handleInput():
     if keys[K_d]:
         camera.rotation[1] += turnspeed * delta
     if keys[K_q]:
-        camera.position[1] += speed * delta
-    if keys[K_e]:
         camera.position[1] -= speed * delta
+    if keys[K_e]:
+        camera.position[1] += speed * delta
     if keys[K_r]:
-        camera.rotation[0] += turnspeed * delta
-    if keys[K_f]:
         camera.rotation[0] -= turnspeed * delta
+    if keys[K_f]:
+        camera.rotation[0] += turnspeed * delta
 
 
 def createRotationMatrix(rotation):
@@ -166,14 +167,12 @@ def update():
     view_matrix = createViewMatrix(camera)
     calcDelta()
 
-
 def render():
     polygons = []
     display.fill([255, 255, 255])
     light_direction = array([1.0, -1.0, 1.0])
     light_direction = light_direction / np.linalg.norm(light_direction)
     for model in models:
-        model.rotation += delta * 0.1
         transformed_vertices = numpy.append(model.vertices, np.ones((len(model.vertices), 1)),axis=1)
         transformed_vertices = transformed_vertices @ createRotationMatrix(model.rotation)
         transformed_vertices = transformed_vertices + np.append(model.position, 1.0)
@@ -191,13 +190,17 @@ def render():
                 vertices = array([v1[0:2], v2[0:2], v3[0:2]])
 
                 lighting = np.dot(transformed_normals[i][0:3], light_direction)
-                lighting = max(lighting, 0.0)
+                lighting = max(lighting, 0.0)+0.2
                 colors = model.colors[i]*lighting
+                colors = np.clip(colors, 0, 255)
                 polygons.append(Polygon_2D(vertices, colors, depth))
 
     polygons.sort(key=lambda x: x.depth)
 
     for polygon in polygons:
+        polygon.vertices[0][1] = height-polygon.vertices[0][1]
+        polygon.vertices[1][1] = height-polygon.vertices[1][1]
+        polygon.vertices[2][1] = height-polygon.vertices[2][1]
         pygame.draw.polygon(display, polygon.color, polygon.vertices)
 
     pygame.display.update()
@@ -205,7 +208,53 @@ def render():
 
 
 def program():
-    for i in range(15):
+    size = 15
+    heights = [[0 for x in range(size)] for y in range(size)]
+    for y in range(size):
+        for x in range(size):
+            heights[x][y] = sin((x * 3 + 0.23) * 0.6) * 0.5 * cos(y * 0.6) * 0.5
+    for y in range(size):
+        for x in range(size):
+            heights[x][y] += cos((3.14 * x + 1.23) * 0.2) * 1.0 * sin(5.2 * y * 1.6) * .2
+            heights[x][y] *= 1.55
+    vertices = np.zeros(shape=(0, 3))
+    colors = np.zeros(shape=(0, 3))
+    for y in range(size - 1):
+        for x in range(size - 1):
+
+            v0 = np.array([x, heights[x][y], y])
+            v1 = np.array([x + 1, heights[x + 1][y], y])
+            v2 = np.array([x + 1, heights[x + 1][y + 1], y + 1])
+            v3 = np.array([x, heights[x][y + 1], y + 1])
+
+            factor = 10
+            translate = np.array([-((size - 1) / 2) * factor, 0, -((size - 1) / 2) * factor])
+
+            center_height = (v0[1]+v1[1]+v3[1])/3
+            color = array([0, 255, 0])
+            if center_height < -0.2:
+                color = array([0, 0, 255])
+
+            if center_height > 0.2:
+                color = array([255, 255, 255])
+            colors = np.vstack([colors, color])
+
+            center_height = (v1[1]+v2[1]+v3[1])/3
+            color = array([0, 255, 0])
+            if center_height < -0.2:
+                color = array([0, 0, 255])
+
+            if center_height > 0.2:
+                color = array([255, 255, 255])
+            colors = np.vstack([colors, color])
+
+            vertices = np.vstack([vertices, np.multiply(np.array([v0, v1, v3]), factor) + translate])
+            vertices = np.vstack([vertices, np.multiply(np.array([v1, v2, v3]), factor) + translate])
+
+    terrain = Model(array([0.0, 0.0, 0.0]), vertices, colors)
+    models.append(terrain)
+
+    for i in range(0):
         position = array(
             [random.uniform(-10.0, 10.0), random.uniform(-10.0, 10.0), random.uniform(-10.0, 10.0)])
         r = random.uniform(1.0, 3.0)
@@ -239,8 +288,8 @@ def program():
                         color1,
                         color3,
                         color3,
-                        color1,
-                        color1])
+                        color2,
+                        color2])
 
         models.append(Model(position, vertices, colors))
 
