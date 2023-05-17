@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 import pygame
 import time
@@ -14,7 +16,7 @@ run = True
 width = 1800
 height = 950
 display = pygame.display.set_mode((width, height))
-far_plane = 50
+far_plane = 20
 near_plane = 0.1
 delta = 0
 last_frame_time = time.time()
@@ -29,11 +31,15 @@ class Chunk:
     def __init__(self, x, y):
         self.x = int(x)
         self.y = int(y)
-        model = generateTerrainChunkModel(self.x*self.chunk_size, self.y*self.chunk_size, self.chunk_size+1)
+        self.center_world_pos = array(
+            [self.x * self.chunk_size + self.chunk_size / 2, self.y * self.chunk_size + self.chunk_size / 2])
+        model = generateTerrainChunkModel(self.x * self.chunk_size, self.y * self.chunk_size, self.chunk_size + 1)
         self.model = model
         models.append(model)
+
     def cleanUp(self):
         models.remove(self.model)
+
 
 class Model:
     def __init__(self, position, vertices, colors):
@@ -62,10 +68,12 @@ class Camera:
         self.position = array([0.0, 0.0, 0.0])
         self.rotation = array([0.0, 0, 0.0, 0.0])
 
+
 camera = Camera()
 camera.position[1] = 3
 models = []
 chunks = []
+
 
 def calcDelta():
     global last_frame_time
@@ -173,20 +181,45 @@ def fromWorldToScreen(point_3D):
     return screen_space
 
 
+def getDistanceBetween_2D(p1, p2):
+    dx = p1[0] - p2[0]
+    dy = p1[1] - p2[1]
+    return math.sqrt(dx * dx + dy * dy)
+
+
+def hasChunk(x, y):
+    for chunk in chunks:
+        if chunk.x == x and chunk.y == y: return True
+    return False
+
+
 def update():
     global view_matrix
     view_matrix = createViewMatrix(camera)
     calcDelta()
 
-    for chunk in chunks:
-        chunk.cleanUp()
-    chunks.clear()
-    x = camera.position[0]/Chunk.chunk_size
-    y = camera.position[2]/Chunk.chunk_size
-    r = 4
-    for i in range(-r, r, 1):
-        for j in range(-r, r, 1):
-            chunks.append(Chunk(x+i, y+j))
+    load_chunk_world_distance = 8
+    distance = load_chunk_world_distance
+    x = camera.position[0] - distance * sin(-camera.rotation[1])
+    z = camera.position[2] - distance * cos(-camera.rotation[1])
+    target_point = array([x / Chunk.chunk_size, z / Chunk.chunk_size])
+    for i in range(len(chunks)-1,  - 1, -1):
+        if getDistanceBetween_2D(chunks[i].center_world_pos, array([x, z])) > load_chunk_world_distance+Chunk.chunk_size*2:
+            chunks[i].cleanUp()
+            chunks.remove(chunks[i])
+
+    r = int(load_chunk_world_distance / Chunk.chunk_size)
+    target_x = int(target_point[0])
+    target_y = int(target_point[1])
+    i = 0
+    for y in range(-r, r, 1):
+        for x in range(-r, r, 1):
+            if not hasChunk(target_x+x, target_y+y):
+                chunks.append(Chunk(target_x+x, target_y+y))
+                i += 1
+    if i > 0:
+        print(f"added {i} chunks")
+
 
 def render():
     polygons = []
@@ -283,7 +316,6 @@ def generateTerrainChunkModel(start_x, start_y, size):
 
 
 def program():
-
     for i in range(0):
         position = array(
             [random.uniform(-10.0, 10.0), random.uniform(-10.0, 10.0), random.uniform(-10.0, 10.0)])
