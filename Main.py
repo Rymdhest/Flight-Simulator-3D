@@ -30,12 +30,13 @@ class Model:
         self.vertices = vertices
         self.colors = colors
         self.rotation = array([0.0, 0.0, 0.0])
-        self.normals = np.zeros((int(len(vertices)/3), 3))
+        self.normals = np.zeros((int(len(vertices) / 3), 3))
         for i in range(len(self.normals)):
-            v1 = vertices[i*3+1] - vertices[i*3+0]
-            v2 = vertices[i*3+2] - vertices[i*3+0]
+            v1 = vertices[i * 3 + 1] - vertices[i * 3 + 0]
+            v2 = vertices[i * 3 + 2] - vertices[i * 3 + 0]
             normal = np.cross(v1, v2)
             self.normals[i] = normal / np.linalg.norm(normal)
+
 
 class Polygon_2D:
     def __init__(self, vertices, color, depth):
@@ -51,7 +52,6 @@ class Camera:
 
 
 camera = Camera()
-#camera.position[2] = 10
 models = []
 
 
@@ -152,12 +152,10 @@ projection_matrix = createProjectionMatrix()
 
 
 def fromWorldToScreen(point_3D):
-    d4_world_position = array([point_3D[0], point_3D[1], point_3D[2]])
     clipspace_position = projection_matrix @ view_matrix @ point_3D
-    NDC_space = array([clipspace_position[0], clipspace_position[1], clipspace_position[2]]) / clipspace_position[3]
+    NDC_space = clipspace_position[0:2] / clipspace_position[3]
     x = ((NDC_space[0] + 1) / 2) * display.get_width()
     y = ((NDC_space[1] + 1) / 2) * display.get_height()
-
     screen_space = array([x, y, clipspace_position[2]])
     return screen_space
 
@@ -167,17 +165,18 @@ def update():
     view_matrix = createViewMatrix(camera)
     calcDelta()
 
+
 def render():
     polygons = []
     display.fill([255, 255, 255])
     light_direction = array([1.0, -1.0, 1.0])
     light_direction = light_direction / np.linalg.norm(light_direction)
     for model in models:
-        transformed_vertices = numpy.append(model.vertices, np.ones((len(model.vertices), 1)),axis=1)
+        transformed_vertices = numpy.append(model.vertices, np.ones((len(model.vertices), 1)), axis=1)
         transformed_vertices = transformed_vertices @ createRotationMatrix(model.rotation)
         transformed_vertices = transformed_vertices + np.append(model.position, 1.0)
 
-        transformed_normals = numpy.append(model.normals, np.ones((len(model.normals), 1)),axis=1)
+        transformed_normals = numpy.append(model.normals, np.ones((len(model.normals), 1)), axis=1)
         transformed_normals = transformed_normals @ createRotationMatrix(model.rotation)
         for i in range(int(len(transformed_vertices) / 3)):
             v1 = fromWorldToScreen(transformed_vertices[i * 3 + 0])
@@ -190,22 +189,35 @@ def render():
                 vertices = array([v1[0:2], v2[0:2], v3[0:2]])
 
                 lighting = np.dot(transformed_normals[i][0:3], light_direction)
-                lighting = max(lighting, 0.0)+0.2
-                fog = 1-array([0.1, 0.1, 0.1])*v3[2]*0.1
-                colors = model.colors[i]*fog*lighting
+                lighting = max(lighting, 0.0) + 0.2
+                fog = 1 - array([0.1, 0.1, 0.1]) * v3[2] * 0.1
+                colors = model.colors[i] * fog * lighting
                 colors = np.clip(colors, 0, 255)
+
                 polygons.append(Polygon_2D(vertices, colors, depth))
 
     polygons.sort(key=lambda x: x.depth)
 
     for polygon in polygons:
-        polygon.vertices[0][1] = height-polygon.vertices[0][1]
-        polygon.vertices[1][1] = height-polygon.vertices[1][1]
-        polygon.vertices[2][1] = height-polygon.vertices[2][1]
+        polygon.vertices[0][1] = height - polygon.vertices[0][1]
+        polygon.vertices[1][1] = height - polygon.vertices[1][1]
+        polygon.vertices[2][1] = height - polygon.vertices[2][1]
         pygame.draw.polygon(display, polygon.color, polygon.vertices)
 
     pygame.display.update()
     pygame.display.flip()
+
+
+def noiseFunction(x, y):
+    rand = random.Random()
+    rand.seed(x * y)
+    value = 2 * sin(y * 0.2 * rand.uniform(0.8, 1.2)) * cos(x * 0.2 * rand.uniform(0.8, 1.2))
+    value += sin(x * 0.5 * rand.uniform(0.9, 1.1)) * cos(y * 0.5 * rand.uniform(0.9, 1.1))
+    value += sin(x * 0.2 * rand.uniform(0.5, 1.5)) * cos(y * 0.1 * rand.uniform(0.5, 1.5))
+
+    if value < 0: value = 0
+    value += rand.uniform(-0.1, 0.1)
+    return value
 
 
 def program():
@@ -213,11 +225,7 @@ def program():
     heights = [[0 for x in range(size)] for y in range(size)]
     for y in range(size):
         for x in range(size):
-            heights[x][y] = sin((x * 3 + 0.23) * 0.6) * 0.5 * cos(y * 0.6) * 0.5
-    for y in range(size):
-        for x in range(size):
-            heights[x][y] += cos((3.14 * x + 1.23) * 0.2) * 1.0 * sin(5.2 * y * 1.6) * .2
-            heights[x][y] *= 1.55
+            heights[x][y] = noiseFunction(x, y+15)
     vertices = np.zeros(shape=(0, 3))
     colors = np.zeros(shape=(0, 3))
     for y in range(size - 1):
@@ -231,21 +239,21 @@ def program():
             factor = 3
             translate = np.array([-((size - 1) / 2) * factor, 0, -((size - 1) / 2) * factor])
 
-            center_height = (v0[1]+v1[1]+v3[1])/3
+            center_height = (v0[1] + v1[1] + v3[1]) / 3
             color = array([0, 255, 0])
             if center_height < -0.2:
                 color = array([0, 0, 255])
 
-            if center_height > 0.2:
+            if center_height > 1.2:
                 color = array([255, 255, 255])
             colors = np.vstack([colors, color])
 
-            center_height = (v1[1]+v2[1]+v3[1])/3
+            center_height = (v1[1] + v2[1] + v3[1]) / 3
             color = array([0, 255, 0])
             if center_height < -0.2:
                 color = array([0, 0, 255])
 
-            if center_height > 0.2:
+            if center_height > 1.2:
                 color = array([255, 255, 255])
             colors = np.vstack([colors, color])
 
