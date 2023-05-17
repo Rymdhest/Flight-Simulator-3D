@@ -15,13 +15,25 @@ width = 1800
 height = 950
 display = pygame.display.set_mode((width, height))
 far_plane = 50
-near_plane = 3
+near_plane = 0.1
 delta = 0
 last_frame_time = time.time()
 last_second_time = time.time()
 frames_current_second = 0
 frames_last_second = 0
 
+
+class Chunk:
+    chunk_size = 2
+
+    def __init__(self, x, y):
+        self.x = int(x)
+        self.y = int(y)
+        model = generateTerrainChunkModel(self.x*self.chunk_size, self.y*self.chunk_size, self.chunk_size+1)
+        self.model = model
+        models.append(model)
+    def cleanUp(self):
+        models.remove(self.model)
 
 class Model:
     def __init__(self, position, vertices, colors):
@@ -50,10 +62,10 @@ class Camera:
         self.position = array([0.0, 0.0, 0.0])
         self.rotation = array([0.0, 0, 0.0, 0.0])
 
-
 camera = Camera()
+camera.position[1] = 3
 models = []
-
+chunks = []
 
 def calcDelta():
     global last_frame_time
@@ -153,6 +165,7 @@ projection_matrix = createProjectionMatrix()
 
 def fromWorldToScreen(point_3D):
     clipspace_position = projection_matrix @ view_matrix @ point_3D
+    if clipspace_position[3] == 0: clipspace_position[3] = 0.00001
     NDC_space = clipspace_position[0:2] / clipspace_position[3]
     x = ((NDC_space[0] + 1) / 2) * display.get_width()
     y = ((NDC_space[1] + 1) / 2) * display.get_height()
@@ -165,6 +178,15 @@ def update():
     view_matrix = createViewMatrix(camera)
     calcDelta()
 
+    for chunk in chunks:
+        chunk.cleanUp()
+    chunks.clear()
+    x = camera.position[0]/Chunk.chunk_size
+    y = camera.position[2]/Chunk.chunk_size
+    r = 4
+    for i in range(-r, r, 1):
+        for j in range(-r, r, 1):
+            chunks.append(Chunk(x+i, y+j))
 
 def render():
     polygons = []
@@ -220,12 +242,11 @@ def noiseFunction(x, y):
     return value
 
 
-def program():
-    size = 25
+def generateTerrainChunkModel(start_x, start_y, size):
     heights = [[0 for x in range(size)] for y in range(size)]
     for y in range(size):
         for x in range(size):
-            heights[x][y] = noiseFunction(x, y+15)
+            heights[x][y] = noiseFunction(start_x + x, start_y + y)
     vertices = np.zeros(shape=(0, 3))
     colors = np.zeros(shape=(0, 3))
     for y in range(size - 1):
@@ -235,9 +256,6 @@ def program():
             v1 = np.array([x + 1, heights[x + 1][y], y])
             v2 = np.array([x + 1, heights[x + 1][y + 1], y + 1])
             v3 = np.array([x, heights[x][y + 1], y + 1])
-
-            factor = 3
-            translate = np.array([-((size - 1) / 2) * factor, 0, -((size - 1) / 2) * factor])
 
             center_height = (v0[1] + v1[1] + v3[1]) / 3
             color = array([0, 255, 0])
@@ -257,11 +275,14 @@ def program():
                 color = array([255, 255, 255])
             colors = np.vstack([colors, color])
 
-            vertices = np.vstack([vertices, np.multiply(np.array([v0, v1, v3]), factor) + translate])
-            vertices = np.vstack([vertices, np.multiply(np.array([v1, v2, v3]), factor) + translate])
+            vertices = np.vstack([vertices, array([v1, v2, v3])])
+            vertices = np.vstack([vertices, array([v0, v1, v3])])
 
-    terrain = Model(array([0.0, 0.0, 0.0]), vertices, colors)
-    models.append(terrain)
+    terrain_model = Model(array([start_x, 0.0, start_y]), vertices, colors)
+    return terrain_model
+
+
+def program():
 
     for i in range(0):
         position = array(
