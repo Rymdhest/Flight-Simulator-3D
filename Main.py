@@ -14,7 +14,7 @@ run = True
 width = 1800
 height = 950
 display = pygame.display.set_mode((width, height))
-far_plane = 100
+far_plane = 50
 near_plane = 3
 delta = 0
 last_frame_time = time.time()
@@ -191,7 +191,8 @@ def render():
 
                 lighting = np.dot(transformed_normals[i][0:3], light_direction)
                 lighting = max(lighting, 0.0)+0.2
-                colors = model.colors[i]*lighting
+                fog = 1-array([0.1, 0.1, 0.1])*v3[2]*0.1
+                colors = model.colors[i]*fog*lighting
                 colors = np.clip(colors, 0, 255)
                 polygons.append(Polygon_2D(vertices, colors, depth))
 
@@ -208,7 +209,7 @@ def render():
 
 
 def program():
-    size = 15
+    size = 25
     heights = [[0 for x in range(size)] for y in range(size)]
     for y in range(size):
         for x in range(size):
@@ -227,7 +228,7 @@ def program():
             v2 = np.array([x + 1, heights[x + 1][y + 1], y + 1])
             v3 = np.array([x, heights[x][y + 1], y + 1])
 
-            factor = 10
+            factor = 3
             translate = np.array([-((size - 1) / 2) * factor, 0, -((size - 1) / 2) * factor])
 
             center_height = (v0[1]+v1[1]+v3[1])/3
