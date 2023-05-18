@@ -70,7 +70,9 @@ class Camera:
 
 
 camera = Camera()
+camera.position[0] = 250
 camera.position[1] = 3
+camera.position[0] = 250
 models = []
 chunks = []
 
@@ -249,9 +251,6 @@ def render():
         transformed_vertices = transformed_vertices @ scale_matrix
         transformed_vertices = transformed_vertices + (np.append(model.position, 1.0) @ scale_matrix)
 
-
-
-
         transformed_normals = numpy.append(model.normals, np.ones((len(model.normals), 1)), axis=1)
         transformed_normals = transformed_normals @ createRotationMatrix(model.rotation)
         for i in range(int(len(transformed_vertices) / 3)):
@@ -279,25 +278,26 @@ def render():
         polygon.vertices[1][1] = height - polygon.vertices[1][1]
         polygon.vertices[2][1] = height - polygon.vertices[2][1]
         pygame.draw.polygon(display, polygon.color, polygon.vertices)
-    #drawMap(array([int(width / 2), int(height / 2)]), 500, array([camera.position[0], camera.position[2]]))
+    #drawMap(array([int(width / 2), int(height / 2)]), 200, array([camera.position[0], camera.position[2]]))
     pygame.display.update()
     pygame.display.flip()
 
 
 def noiseFunction(x, y):
     iterations = 1
-    frequency = 1.02
-    amplitude = Noise.interpolated_noise(x*0.08, y*0.08)*25
+    frequency = 1.0
+    amplitude = Noise.interpolated_noise(x * 0.1, y * 0.1) * 25
     value = 0
     for i in range(iterations):
-        amount = Noise.perlin_noise(x*frequency, y*frequency, 0.5, 3)*amplitude
-        amount = 1.1*(1.5-abs(0.75-amount))
-        amount = pow(abs(amount), 1.45)
+        amount = Noise.perlin_noise(x * frequency, y * frequency, 0.5, 2) * amplitude
+        amount = 1.1 * (1.5 - abs(0.75 - amount))
+        amount = pow(abs(amount), 1.35)
 
         value += amount
-        amplitude = amplitude*0.25
-        frequency = frequency*3
-    if value < 0: value =0
+        amplitude = amplitude * 0.25
+        frequency = frequency * 3
+    value -= Noise.perlin_noise(x * 0.1, y * 0.1, 0.5, 1) * 5
+
     return value
 
 
@@ -317,33 +317,44 @@ def generateTerrainChunkModel(start_x, start_y, size):
             v3 = np.array([x, heights[x][y + 1], y + 1])
 
             center_height = (v1[1] + v2[1] + v3[1]) / 3
-            color = array([0, 255, 0])
-            if center_height < -0.2:
-                color = array([0, 0, 255])
+
+            snow_color = array([236, 255, 253])
+            water_color = array([33, 98, 227]) * (-clamp(center_height, -1, -0.5))
+            grass_color = array([72, 144, 48])
+
+            polygon_1= array([v1, v2, v3])
+            polygon_2 = array([v0, v1, v3])
+
+            color = grass_color
+            if np.amax(polygon_1[:,1]) <= 0.0:
+                color = water_color
 
             if center_height > 1.2:
-                color = array([255, 255, 255])
+                color = snow_color
             colors = np.vstack([colors, color])
 
             center_height = (v0[1] + v1[1] + v3[1]) / 3
-            color = array([0, 255, 0])
-            if center_height < -0.2:
-                color = array([0, 0, 255])
+            color = grass_color
+            if np.amax(polygon_2[:,1]) <= 0.0:
+                color = water_color
 
             if center_height > 1.2:
-                color = array([255, 255, 255])
+                color = snow_color
             colors = np.vstack([colors, color])
 
-            vertices = np.vstack([vertices, array([v1, v2, v3])])
-            vertices = np.vstack([vertices, array([v0, v1, v3])])
+            vertices = np.vstack([vertices, polygon_1])
+            vertices = np.vstack([vertices, polygon_2])
+
+    print(vertices)
+    vertices[:, 1] = np.clip(vertices[:, 1], 0, 99999) # plattar till vattnet
 
     terrain_model = Model(array([start_x, 0.0, start_y]), vertices, colors)
     return terrain_model
 
 
-def     drawMap(position_screen, resolution, position_world):
+def drawMap(position_screen, resolution, position_world):
     r = int(resolution / 2)
-    zoom_out = 1000
+    zoom_out = 1
     for x in range(-r, r, 1):
         for y in range(-r, r, 1):
             color = noiseFunction(x * zoom_out + position_world[0], y * zoom_out + position_world[1])
