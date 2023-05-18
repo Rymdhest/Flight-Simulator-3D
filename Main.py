@@ -1,5 +1,4 @@
 import math
-
 import numpy as np
 import pygame
 import time
@@ -10,13 +9,14 @@ from pygame.math import clamp
 from numpy import array
 from numpy import cos
 from numpy import sin
+import Noise
 from pygame.locals import *  ## allt för att hämta konstanter till varje tangent
 
 run = True
 width = 1800
 height = 950
 display = pygame.display.set_mode((width, height))
-far_plane = 20
+far_plane = 60
 near_plane = 0.1
 delta = 0
 last_frame_time = time.time()
@@ -26,7 +26,7 @@ frames_last_second = 0
 
 
 class Chunk:
-    chunk_size = 2
+    chunk_size = 3
 
     def __init__(self, x, y):
         self.x = int(x)
@@ -94,13 +94,18 @@ def calcDelta():
 
 
 def handleInput():
+    speed = 1.5
+    turnspeed = 0.6
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             global run
             run = False
+        if event.type == MOUSEMOTION:
+            movement = pygame.mouse.get_rel()
+            camera.rotation[2] += movement[0] * delta * 0.01
+            camera.rotation[0] -= movement[1] * delta * 0.01
     keys = pygame.key.get_pressed()
-    speed = 1.5
-    turnspeed = 0.6
+
     if keys[K_w]:
         camera.position[0] -= speed * delta * sin(-camera.rotation[1])
         camera.position[2] -= speed * delta * cos(-camera.rotation[1])
@@ -121,6 +126,10 @@ def handleInput():
         camera.rotation[0] -= turnspeed * delta
     if keys[K_f]:
         camera.rotation[0] += turnspeed * delta
+    if keys[K_c]:
+        camera.rotation[2] += turnspeed * delta
+    if keys[K_v]:
+        camera.rotation[2] -= turnspeed * delta
 
 
 def createRotationMatrix(rotation):
@@ -203,8 +212,9 @@ def update():
     x = camera.position[0] - distance * sin(-camera.rotation[1])
     z = camera.position[2] - distance * cos(-camera.rotation[1])
     target_point = array([x / Chunk.chunk_size, z / Chunk.chunk_size])
-    for i in range(len(chunks)-1,  - 1, -1):
-        if getDistanceBetween_2D(chunks[i].center_world_pos, array([x, z])) > load_chunk_world_distance+Chunk.chunk_size*2:
+    for i in range(len(chunks) - 1, - 1, -1):
+        if getDistanceBetween_2D(chunks[i].center_world_pos,
+                                 array([x, z])) > load_chunk_world_distance + Chunk.chunk_size * 2:
             chunks[i].cleanUp()
             chunks.remove(chunks[i])
 
@@ -214,8 +224,8 @@ def update():
     i = 0
     for y in range(-r, r, 1):
         for x in range(-r, r, 1):
-            if not hasChunk(target_x+x, target_y+y):
-                chunks.append(Chunk(target_x+x, target_y+y))
+            if not hasChunk(target_x + x, target_y + y):
+                chunks.append(Chunk(target_x + x, target_y + y))
                 i += 1
     if i > 0:
         print(f"added {i} chunks")
@@ -223,13 +233,24 @@ def update():
 
 def render():
     polygons = []
-    display.fill([255, 255, 255])
-    light_direction = array([1.0, -1.0, 1.0])
+    sky_color = array([178, 255, 255])
+    display.fill(sky_color)
+    light_direction = array([0.9, -0.7, .9])
     light_direction = light_direction / np.linalg.norm(light_direction)
     for model in models:
+        scale_matrix = np.identity(4)
+        scale_matrix[0, 0] = model.scale[0]
+        scale_matrix[1, 1] = model.scale[1]
+        scale_matrix[2, 2] = model.scale[2]
+
         transformed_vertices = numpy.append(model.vertices, np.ones((len(model.vertices), 1)), axis=1)
+
         transformed_vertices = transformed_vertices @ createRotationMatrix(model.rotation)
-        transformed_vertices = transformed_vertices + np.append(model.position, 1.0)
+        transformed_vertices = transformed_vertices @ scale_matrix
+        transformed_vertices = transformed_vertices + (np.append(model.position, 1.0) @ scale_matrix)
+
+
+
 
         transformed_normals = numpy.append(model.normals, np.ones((len(model.normals), 1)), axis=1)
         transformed_normals = transformed_normals @ createRotationMatrix(model.rotation)
@@ -244,7 +265,7 @@ def render():
                 vertices = array([v1[0:2], v2[0:2], v3[0:2]])
 
                 lighting = np.dot(transformed_normals[i][0:3], light_direction)
-                lighting = max(lighting, 0.0) + 0.2
+                lighting = max(lighting, 0.0) + 0.4
                 fog = 1 - array([0.1, 0.1, 0.1]) * v3[2] * 0.1
                 colors = model.colors[i] * fog * lighting
                 colors = np.clip(colors, 0, 255)
@@ -258,20 +279,25 @@ def render():
         polygon.vertices[1][1] = height - polygon.vertices[1][1]
         polygon.vertices[2][1] = height - polygon.vertices[2][1]
         pygame.draw.polygon(display, polygon.color, polygon.vertices)
-
+    #drawMap(array([int(width / 2), int(height / 2)]), 500, array([camera.position[0], camera.position[2]]))
     pygame.display.update()
     pygame.display.flip()
 
 
 def noiseFunction(x, y):
-    rand = random.Random()
-    rand.seed(x * y)
-    value = 2 * sin(y * 0.2 * rand.uniform(0.8, 1.2)) * cos(x * 0.2 * rand.uniform(0.8, 1.2))
-    value += sin(x * 0.5 * rand.uniform(0.9, 1.1)) * cos(y * 0.5 * rand.uniform(0.9, 1.1))
-    value += sin(x * 0.2 * rand.uniform(0.5, 1.5)) * cos(y * 0.1 * rand.uniform(0.5, 1.5))
+    iterations = 1
+    frequency = 1.02
+    amplitude = Noise.interpolated_noise(x*0.08, y*0.08)*25
+    value = 0
+    for i in range(iterations):
+        amount = Noise.perlin_noise(x*frequency, y*frequency, 0.5, 3)*amplitude
+        amount = 1.1*(1.5-abs(0.75-amount))
+        amount = pow(abs(amount), 1.45)
 
-    if value < 0: value = 0
-    value += rand.uniform(-0.1, 0.1)
+        value += amount
+        amplitude = amplitude*0.25
+        frequency = frequency*3
+    if value < 0: value =0
     return value
 
 
@@ -290,7 +316,7 @@ def generateTerrainChunkModel(start_x, start_y, size):
             v2 = np.array([x + 1, heights[x + 1][y + 1], y + 1])
             v3 = np.array([x, heights[x][y + 1], y + 1])
 
-            center_height = (v0[1] + v1[1] + v3[1]) / 3
+            center_height = (v1[1] + v2[1] + v3[1]) / 3
             color = array([0, 255, 0])
             if center_height < -0.2:
                 color = array([0, 0, 255])
@@ -299,7 +325,7 @@ def generateTerrainChunkModel(start_x, start_y, size):
                 color = array([255, 255, 255])
             colors = np.vstack([colors, color])
 
-            center_height = (v1[1] + v2[1] + v3[1]) / 3
+            center_height = (v0[1] + v1[1] + v3[1]) / 3
             color = array([0, 255, 0])
             if center_height < -0.2:
                 color = array([0, 0, 255])
@@ -313,6 +339,16 @@ def generateTerrainChunkModel(start_x, start_y, size):
 
     terrain_model = Model(array([start_x, 0.0, start_y]), vertices, colors)
     return terrain_model
+
+
+def     drawMap(position_screen, resolution, position_world):
+    r = int(resolution / 2)
+    zoom_out = 1000
+    for x in range(-r, r, 1):
+        for y in range(-r, r, 1):
+            color = noiseFunction(x * zoom_out + position_world[0], y * zoom_out + position_world[1])
+            color = clamp(((color + 1.0) / 2) * 100, 0, 255)
+            display.set_at((x + position_screen[0], y + position_screen[1]), [color, 0, 0])
 
 
 def program():
