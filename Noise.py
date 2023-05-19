@@ -52,3 +52,20 @@ def perlin_noise(x, y, persistence, octaves):
         frequency *= 2
 
     return total / max_value
+
+def noiseFunction(x, y):
+    iterations = 1
+    frequency = 1.0
+    amplitude = interpolated_noise(x * 0.1, y * 0.1) * 25
+    value = 0
+    for i in range(iterations):
+        amount = perlin_noise(x * frequency, y * frequency, 0.5, 2) * amplitude
+        amount = 1.1 * (1.5 - abs(0.75 - amount))
+        amount = pow(abs(amount), 1.35)
+
+        value += amount
+        amplitude = amplitude * 0.25
+        frequency = frequency * 3
+    value -= perlin_noise(x * 0.1, y * 0.1, 0.5, 1) * 5
+
+    return value
