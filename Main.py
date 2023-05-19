@@ -27,7 +27,7 @@ frames_last_second = 0
 
 
 class Chunk:
-    chunk_size = 3
+    chunk_size = 4
 
     def __init__(self, x, y):
         self.x = int(x)
@@ -71,9 +71,9 @@ class Camera:
 
 
 camera = Camera()
-camera.position[0] = 0
+camera.position[0] = 9500
 camera.position[1] = 3
-camera.position[0] = 0
+camera.position[0] = 9500
 models = []
 chunks = []
 
@@ -183,6 +183,7 @@ def fromWorldToScreen(point_3D):
 
 
 def hasChunk(x, y):
+    print(len(chunks))
     for chunk in chunks:
         if chunk.x == x and chunk.y == y: return True
     return False
@@ -193,7 +194,7 @@ def update():
     view_matrix = createViewMatrix(camera)
     calcDelta()
 
-    load_chunk_world_distance = 8
+    load_chunk_world_distance = 10
     distance = load_chunk_world_distance
     x = camera.position[0] - distance * sin(-camera.rotation[1])
     z = camera.position[2] - distance * cos(-camera.rotation[1])
@@ -262,7 +263,7 @@ def render():
         polygon.vertices[1][1] = height - polygon.vertices[1][1]
         polygon.vertices[2][1] = height - polygon.vertices[2][1]
         pygame.draw.polygon(display, polygon.color, polygon.vertices)
-    # drawMap(array([int(width / 2), int(height / 2)]), 200, array([camera.position[0], camera.position[2]]))
+    #drawMap(array([int(width / 2), int(height / 2)]), 800, array([camera.position[0], camera.position[2]]))
     pygame.display.update()
     pygame.display.flip()
 
@@ -275,6 +276,7 @@ def generateTerrainChunkModel(start_x, start_y, size):
     for y in range(size):
         for x in range(size):
             heights[x][y] = Noise.noiseFunction(start_x + x, start_y + y)
+
     vertices = np.zeros(shape=(0, 3))
     colors = np.zeros(shape=(0, 3))
     for y in range(size - 1):
@@ -314,36 +316,50 @@ def generateTerrainChunkModel(start_x, start_y, size):
             vertices = np.vstack([vertices, polygon_1])
             vertices = np.vstack([vertices, polygon_2])
 
-    print(vertices)
     vertices[:, 1] = np.clip(vertices[:, 1], 0, 99999)  # plattar till vattnet
 
-    tree_vertices = np.zeros(shape=(0, 3))
-    tree_colors = np.zeros(shape=(0, 3))
+
     stem_h = 0.5
     stem_r = 0.03
     stem_colour = array([115, 50, 20])
     p = [[-stem_r, stem_h, stem_r], [stem_r, stem_h, stem_r], [0, stem_h, -stem_r],
          [-stem_r, 0, stem_r], [stem_r, 0, stem_r], [0, 0, -stem_r]]
 
+    tree_vertices = np.zeros(shape=(0, 3))
+    tree_colors = np.zeros(shape=(0, 3))
+
     tree_vertices = np.vstack([tree_vertices, array([p[0], p[3], p[4]])])
-    colors = np.vstack([colors, stem_colour])
+    tree_colors = np.vstack([tree_colors, stem_colour])
     tree_vertices = np.vstack([tree_vertices, array([p[0], p[4], p[1]])])
-    colors = np.vstack([colors, stem_colour])
+    tree_colors = np.vstack([tree_colors, stem_colour])
 
     tree_vertices = np.vstack([tree_vertices, array([p[1], p[4], p[5]])])
-    colors = np.vstack([colors, stem_colour])
+    tree_colors = np.vstack([tree_colors, stem_colour])
     tree_vertices = np.vstack([tree_vertices, array([p[1], p[5], p[2]])])
-    colors = np.vstack([colors, stem_colour])
+    tree_colors = np.vstack([tree_colors, stem_colour])
 
     tree_vertices = np.vstack([tree_vertices, array([p[0], p[5], p[3]])])
-    colors = np.vstack([colors, stem_colour])
+    tree_colors = np.vstack([tree_colors, stem_colour])
     tree_vertices = np.vstack([tree_vertices, array([p[0], p[2], p[5]])])
-    colors = np.vstack([colors, stem_colour])
+    tree_colors = np.vstack([tree_colors, stem_colour])
 
-    center_height = (heights[0][0]+heights[1][0]+heights[0][1])/3
-    tree_vertices = tree_vertices+array([0.25, center_height, 0.25])
-    vertices = np.vstack([vertices, tree_vertices])
-    colors = np.vstack([colors, tree_colors])
+    random.seed(start_x, start_y)
+    for y in range(size - 1):
+        for x in range(size - 1):
+            if 0.9 <= heights[x][y] <= 1.0:
+                x_world = x+random.uniform(0, 1)
+                y_world = y+random.uniform(0, 1)
+                value = Noise.noiseFunction(x_world*0.12, y_world*0.12)*1
+                print(value)
+                if value < 0.75:
+                    continue
+                v0 = np.array([x, heights[x][y], y])
+                v1 = np.array([x + 1, heights[x + 1][y], y])
+                v2 = np.array([x + 1, heights[x + 1][y + 1], y + 1])
+                v3 = np.array([x, heights[x][y + 1], y + 1])
+                center_height = barryCentric(v0, v1, v3, array([x_world, y_world]))
+                vertices = np.vstack([vertices, tree_vertices+array([x_world, center_height, y_world])])
+                colors = np.vstack([colors, tree_colors])
 
     terrain_model = Model(array([start_x, 0.0, start_y]), vertices, colors)
     return terrain_model
