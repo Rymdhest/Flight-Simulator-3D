@@ -135,17 +135,14 @@ def handleInput():
         camera.rotation[2] -= turnspeed * delta
 
 
-
-
-
 def createTranslateMatrix(translation):
-    translate_matrix = numpy.identity(4)
+    translate_matrix = np.identity(4)
     translate_matrix[0:3, 3] = translation
     return translate_matrix
 
 
 def createViewMatrix(camera):
-    matrix = numpy.identity(4)
+    matrix = np.identity(4)
     matrix = createTranslateMatrix(-camera.position) @ matrix
     matrix = createRotationMatrix(camera.rotation) @ matrix
     return matrix
@@ -154,7 +151,7 @@ def createViewMatrix(camera):
 def createProjectionMatrix():
     field_of_view = pi / 2  # 90 grader
     aspect_ratio = display.get_width() / display.get_height()
-    y_scale = 1 / numpy.arctan(field_of_view / 2)
+    y_scale = 1 / np.arctan(field_of_view / 2)
     x_scale = y_scale / aspect_ratio
     frustum_length = far_plane - near_plane
     A = -((far_plane + near_plane) / frustum_length)
@@ -180,10 +177,7 @@ def fromWorldToScreen(point_3D):
     return screen_space
 
 
-
-
 def hasChunk(x, y):
-    print(len(chunks))
     for chunk in chunks:
         if chunk.x == x and chunk.y == y: return True
     return False
@@ -217,7 +211,12 @@ def update():
     if i > 0:
         print(f"added {i} chunks")
 
-
+def createScaleMatrix(scale):
+    scale_matrix = np.identity(4)
+    scale_matrix[0, 0] = scale[0]
+    scale_matrix[1, 1] = scale[1]
+    scale_matrix[2, 2] = scale[2]
+    return scale_matrix
 def render():
     polygons = []
     sky_color = array([178, 255, 255])
@@ -225,18 +224,15 @@ def render():
     light_direction = array([0.9, -0.7, .9])
     light_direction = light_direction / np.linalg.norm(light_direction)
     for model in models:
-        scale_matrix = np.identity(4)
-        scale_matrix[0, 0] = model.scale[0]
-        scale_matrix[1, 1] = model.scale[1]
-        scale_matrix[2, 2] = model.scale[2]
 
-        transformed_vertices = numpy.append(model.vertices, np.ones((len(model.vertices), 1)), axis=1)
+
+        transformed_vertices = np.append(model.vertices, np.ones((len(model.vertices), 1)), axis=1)
 
         transformed_vertices = transformed_vertices @ createRotationMatrix(model.rotation)
-        transformed_vertices = transformed_vertices @ scale_matrix
-        transformed_vertices = transformed_vertices + (np.append(model.position, 1.0) @ scale_matrix)
+        #transformed_vertices = transformed_vertices @ createScaleMatrix(model.scale)
+        transformed_vertices = transformed_vertices + (np.append(model.position, 1.0))
 
-        transformed_normals = numpy.append(model.normals, np.ones((len(model.normals), 1)), axis=1)
+        transformed_normals = np.append(model.normals, np.ones((len(model.normals), 1)), axis=1)
         transformed_normals = transformed_normals @ createRotationMatrix(model.rotation)
         for i in range(int(len(transformed_vertices) / 3)):
             v1 = fromWorldToScreen(transformed_vertices[i * 3 + 0])
@@ -263,12 +259,9 @@ def render():
         polygon.vertices[1][1] = height - polygon.vertices[1][1]
         polygon.vertices[2][1] = height - polygon.vertices[2][1]
         pygame.draw.polygon(display, polygon.color, polygon.vertices)
-    #drawMap(array([int(width / 2), int(height / 2)]), 800, array([camera.position[0], camera.position[2]]))
+    # drawMap(array([int(width / 2), int(height / 2)]), 800, array([camera.position[0], camera.position[2]]))
     pygame.display.update()
     pygame.display.flip()
-
-
-
 
 
 def generateTerrainChunkModel(start_x, start_y, size):
@@ -318,10 +311,10 @@ def generateTerrainChunkModel(start_x, start_y, size):
 
     vertices[:, 1] = np.clip(vertices[:, 1], 0, 99999)  # plattar till vattnet
 
-
     stem_h = 0.5
     stem_r = 0.03
     stem_colour = array([115, 50, 20])
+    top_colour = array([124, 137, 15])
     p = [[-stem_r, stem_h, stem_r], [stem_r, stem_h, stem_r], [0, stem_h, -stem_r],
          [-stem_r, 0, stem_r], [stem_r, 0, stem_r], [0, 0, -stem_r]]
 
@@ -343,23 +336,48 @@ def generateTerrainChunkModel(start_x, start_y, size):
     tree_vertices = np.vstack([tree_vertices, array([p[0], p[2], p[5]])])
     tree_colors = np.vstack([tree_colors, stem_colour])
 
-    random.seed(start_x, start_y)
+    top_h = 0.4
+    top_r = 0.1
+    p2 = [[0, top_h + stem_h, 0],
+          [-top_r, stem_h, top_r], [top_r, stem_h, top_r],[0, stem_h, -top_r]]
+
+    tree_vertices = np.vstack([tree_vertices, array([p2[0], p2[2], p2[1]])])
+    tree_colors = np.vstack([tree_colors, top_colour])
+
+    tree_vertices = np.vstack([tree_vertices, array([p2[0], p2[3], p2[2]])])
+    tree_colors = np.vstack([tree_colors, top_colour])
+
+    tree_vertices = np.vstack([tree_vertices, array([p2[0], p2[1], p2[3]])])
+    tree_colors = np.vstack([tree_colors, top_colour])
+
+    random.seed(start_x*start_y)
     for y in range(size - 1):
         for x in range(size - 1):
-            if 0.9 <= heights[x][y] <= 1.0:
-                x_world = x+random.uniform(0, 1)
-                y_world = y+random.uniform(0, 1)
-                value = Noise.noiseFunction(x_world*0.12, y_world*0.12)*1
+
+            if 0.1 <= heights[x][y] <= 1.0:
+                x_world = x + random.uniform(0, 1)
+                y_world = y + random.uniform(0, 1)
+                value = Noise.noise((x) * 0.02137, (y) * 0.02137)
+                value = pow(abs(value), 1.4)
                 print(value)
-                if value < 0.75:
+                if value < 1.2-random.uniform(0, 0.95):
                     continue
                 v0 = np.array([x, heights[x][y], y])
                 v1 = np.array([x + 1, heights[x + 1][y], y])
                 v2 = np.array([x + 1, heights[x + 1][y + 1], y + 1])
                 v3 = np.array([x, heights[x][y + 1], y + 1])
                 center_height = barryCentric(v0, v1, v3, array([x_world, y_world]))
-                vertices = np.vstack([vertices, tree_vertices+array([x_world, center_height, y_world])])
-                colors = np.vstack([colors, tree_colors])
+                r_scale = random.uniform(0, 1.2)
+                h_scale = random.uniform(0, 1.2)
+                y_rot = random.uniform(0, pi*2)
+                variance = 0.45
+                color_variance = array([1+random.uniform(-variance, variance),
+                                        1+random.uniform(-variance, variance),
+                                        1+random.uniform(-variance, variance)])
+                tree = np.append(tree_vertices, np.ones((len(tree_vertices), 1)), axis=1) @ createScaleMatrix(array([1+r_scale, 1+h_scale, 1+r_scale]))
+                tree = tree @ createRotationMatrix(array([0, y_rot, 0]))
+                vertices = np.vstack([vertices, np.delete(tree, 3, axis=1) + array([x_world, center_height, y_world])])
+                colors = np.vstack([colors, tree_colors*color_variance])
 
     terrain_model = Model(array([start_x, 0.0, start_y]), vertices, colors)
     return terrain_model

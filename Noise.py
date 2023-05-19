@@ -78,5 +78,4 @@ def noiseFunction(x, y):
     water_amplitude = (noise(-743542 - x * 0.03221, -971654 - y * 0.03221) * 2) ** 4
     #water_amplitude = 1.3 * (0.5 - abs(0.5 - water_amplitude))
     value -= noise(x * 0.432, y * 0.432) * water_amplitude
-
     return value
