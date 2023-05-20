@@ -4,6 +4,7 @@ import pygame
 import time
 import random
 from math import pi
+import pygame.gfxdraw
 import numpy
 from pygame.math import clamp
 from numpy import array
@@ -11,12 +12,13 @@ from numpy import cos
 from numpy import sin
 import Noise
 from MyMath import *
+import Models
 from pygame.locals import *  ## allt för att hämta konstanter till varje tangent
 
 run = True
 width = 1800
 height = 950
-display = pygame.display.set_mode((width, height))
+display = pygame.display.set_mode(size=(width, height))
 far_plane = 60
 near_plane = 0.1
 delta = 0
@@ -26,8 +28,74 @@ frames_current_second = 0
 frames_last_second = 0
 
 
+class Player:
+    def __init__(self):
+        self.position = array([0, 0, 0])
+        self.velocity = array([0, 0, 0])
+
+        body_color = array([215, 42, 24])
+        wing_color = array([199, 209, 222])
+        window_color = array([165, 241, 255])
+
+        h_ration = 1.15
+        ring_list = [0, 0.1, 0.2, 0.5, 3.5, 4.0]
+        radius_list = [[0.01, 0.01 * h_ration], [0.13, 0.13 * h_ration], [0.2, 0.2 * h_ration], [0.25, 0.4 * h_ration],
+                       [0.25, 0.25 * h_ration], [0.1, 0.1 * h_ration]]
+
+        raw_model = Models.generateCylinder(9, ring_list, radius_list, body_color)
+        raw_model.rotate([0, pi, 0])
+        raw_model.rotate([pi / 2, 0, 0])
+        raw_model.colors[(9 * 2) * 2 + 9] = window_color
+        raw_model.colors[(9 * 2) * 2 + 9 - 1] = window_color
+        raw_model.colors[(9 * 2) * 2 + 9 - 2] = window_color
+        raw_model.colors[(9 * 2) * 2 + 9 - 3] = window_color
+        raw_model.colors[(9 * 2) * 2 + 9 + 1] = window_color
+        raw_model.colors[(9 * 2) * 2 + 9 + 2] = window_color
+
+        for i in range(len(raw_model.vertices)):
+            if raw_model.vertices[i][1] < -0.20:
+                raw_model.colors[int(i / 3)] = wing_color
+
+        wing1 = Models.generateBox([0.02, 0, 0.45], [0.02, 1.7, 0.15], [0, 0, -0.4], wing_color)
+        wing1.rotate([0, 0, pi / 2])
+        wing1.translate(array([0.25, 0, -2]))
+        raw_model.add(wing1)
+
+        wing2 = Models.generateBox([0.02, 0, 0.45], [0.02, 1.7, 0.15], [0, 0, -0.4], wing_color)
+        wing2.rotate([0, 0, -pi / 2])
+        wing2.translate(array([-0.25, 0, -2]))
+        raw_model.add(wing2)
+
+        wing1 = Models.generateBox([0.02, 0, 0.25], [0.02, .4, 0.08], [0, 0.0, -0.25], wing_color)
+        wing1.rotate([0, 0, pi / 2])
+        wing1.translate(array([0.15, 0.25, -3.6]))
+        raw_model.add(wing1)
+
+        wing1 = Models.generateBox([0.02, 0, 0.25], [0.02, .4, 0.08], [0, 0.0, -0.25], wing_color)
+        wing1.rotate([0, 0, -pi / 2])
+        wing1.translate(array([-0.15, 0.25, -3.6]))
+        raw_model.add(wing1)
+
+        wing1 = Models.generateBox([0.02, 0, 0.25], [0.02, .4, 0.08], [0, 0.0, -0.25], body_color)
+        wing1.translate(array([0, 0.25, -3.6]))
+        raw_model.add(wing1)
+
+        wing1 = Models.generateBox([0.02, 0, 0.15], [0.02, .4, 0.04], [0, 0.0, -0.25], body_color)
+        wing1.translate(array([1.93, 0.02, -2.4]))
+        raw_model.add(wing1)
+
+        wing1 = Models.generateBox([0.02, 0, 0.15], [0.02, .4, 0.04], [0, 0.0, -0.25], body_color)
+        wing1.translate(array([-1.93, 0.02, -2.4]))
+        raw_model.add(wing1)
+
+        plane = Model(array([camera.position[0], 6, camera.position[2]]), raw_model.vertices, raw_model.colors)
+
+        print(len(raw_model.vertices))
+        models.append(plane)
+
+
 class Chunk:
-    chunk_size = 4
+    chunk_size = 2
 
     def __init__(self, x, y):
         self.x = int(x)
@@ -188,11 +256,17 @@ def update():
     view_matrix = createViewMatrix(camera)
     calcDelta()
 
+    ##TA BORT ENDAST FULT TEST
+    models[0].rotation[0] = sin(time.time() * 0.6) * 0.3
+    models[0].rotation[1] = sin(time.time() * 0.3) * 0.9
+    models[0].rotation[2] = sin(time.time() * 0.7) * 0.7
+
     load_chunk_world_distance = 10
     distance = load_chunk_world_distance
     x = camera.position[0] - distance * sin(-camera.rotation[1])
     z = camera.position[2] - distance * cos(-camera.rotation[1])
     target_point = array([x / Chunk.chunk_size, z / Chunk.chunk_size])
+
     for i in range(len(chunks) - 1, - 1, -1):
         if getDistanceBetween_2D(chunks[i].center_world_pos,
                                  array([x, z])) > load_chunk_world_distance + Chunk.chunk_size * 2:
@@ -211,25 +285,29 @@ def update():
     if i > 0:
         print(f"added {i} chunks")
 
+
 def createScaleMatrix(scale):
     scale_matrix = np.identity(4)
     scale_matrix[0, 0] = scale[0]
     scale_matrix[1, 1] = scale[1]
     scale_matrix[2, 2] = scale[2]
     return scale_matrix
+
+
 def render():
     polygons = []
     sky_color = array([178, 255, 255])
     display.fill(sky_color)
     light_direction = array([0.9, -0.7, .9])
+    light_direction[0] = sin(time.time()) * 1
+    light_direction[2] = cos(time.time()) * 1
     light_direction = light_direction / np.linalg.norm(light_direction)
     for model in models:
-
 
         transformed_vertices = np.append(model.vertices, np.ones((len(model.vertices), 1)), axis=1)
 
         transformed_vertices = transformed_vertices @ createRotationMatrix(model.rotation)
-        #transformed_vertices = transformed_vertices @ createScaleMatrix(model.scale)
+        # transformed_vertices = transformed_vertices @ createScaleMatrix(model.scale)
         transformed_vertices = transformed_vertices + (np.append(model.position, 1.0))
 
         transformed_normals = np.append(model.normals, np.ones((len(model.normals), 1)), axis=1)
@@ -259,8 +337,10 @@ def render():
         polygon.vertices[1][1] = height - polygon.vertices[1][1]
         polygon.vertices[2][1] = height - polygon.vertices[2][1]
         pygame.draw.polygon(display, polygon.color, polygon.vertices)
-    # drawMap(array([int(width / 2), int(height / 2)]), 800, array([camera.position[0], camera.position[2]]))
-    pygame.display.update()
+        # pygame.gfxdraw.filled_polygon(display, polygon.vertices, polygon.color,)
+
+    # drawMap(array([int(width / 2), int(height / 2)]), 600, array([camera.position[0], camera.position[2]]))
+    # pygame.display.update()
     pygame.display.flip()
 
 
@@ -339,7 +419,7 @@ def generateTerrainChunkModel(start_x, start_y, size):
     top_h = 0.4
     top_r = 0.1
     p2 = [[0, top_h + stem_h, 0],
-          [-top_r, stem_h, top_r], [top_r, stem_h, top_r],[0, stem_h, -top_r]]
+          [-top_r, stem_h, top_r], [top_r, stem_h, top_r], [0, stem_h, -top_r]]
 
     tree_vertices = np.vstack([tree_vertices, array([p2[0], p2[2], p2[1]])])
     tree_colors = np.vstack([tree_colors, top_colour])
@@ -350,7 +430,7 @@ def generateTerrainChunkModel(start_x, start_y, size):
     tree_vertices = np.vstack([tree_vertices, array([p2[0], p2[1], p2[3]])])
     tree_colors = np.vstack([tree_colors, top_colour])
 
-    random.seed(start_x*start_y)
+    random.seed(start_x * start_y)
     for y in range(size - 1):
         for x in range(size - 1):
 
@@ -359,8 +439,7 @@ def generateTerrainChunkModel(start_x, start_y, size):
                 y_world = y + random.uniform(0, 1)
                 value = Noise.noise((x) * 0.02137, (y) * 0.02137)
                 value = pow(abs(value), 1.4)
-                print(value)
-                if value < 1.2-random.uniform(0, 0.95):
+                if value < 1.2 - random.uniform(0, 0.95):
                     continue
                 v0 = np.array([x, heights[x][y], y])
                 v1 = np.array([x + 1, heights[x + 1][y], y])
@@ -369,15 +448,16 @@ def generateTerrainChunkModel(start_x, start_y, size):
                 center_height = barryCentric(v0, v1, v3, array([x_world, y_world]))
                 r_scale = random.uniform(0, 1.2)
                 h_scale = random.uniform(0, 1.2)
-                y_rot = random.uniform(0, pi*2)
+                y_rot = random.uniform(0, pi * 2)
                 variance = 0.45
-                color_variance = array([1+random.uniform(-variance, variance),
-                                        1+random.uniform(-variance, variance),
-                                        1+random.uniform(-variance, variance)])
-                tree = np.append(tree_vertices, np.ones((len(tree_vertices), 1)), axis=1) @ createScaleMatrix(array([1+r_scale, 1+h_scale, 1+r_scale]))
+                color_variance = array([1 + random.uniform(-variance, variance),
+                                        1 + random.uniform(-variance, variance),
+                                        1 + random.uniform(-variance, variance)])
+                tree = np.append(tree_vertices, np.ones((len(tree_vertices), 1)), axis=1) @ createScaleMatrix(
+                    array([1 + r_scale, 1 + h_scale, 1 + r_scale]))
                 tree = tree @ createRotationMatrix(array([0, y_rot, 0]))
                 vertices = np.vstack([vertices, np.delete(tree, 3, axis=1) + array([x_world, center_height, y_world])])
-                colors = np.vstack([colors, tree_colors*color_variance])
+                colors = np.vstack([colors, tree_colors * color_variance])
 
     terrain_model = Model(array([start_x, 0.0, start_y]), vertices, colors)
     return terrain_model
@@ -385,15 +465,25 @@ def generateTerrainChunkModel(start_x, start_y, size):
 
 def drawMap(position_screen, resolution, position_world):
     r = int(resolution / 2)
-    zoom_out = 1
+    zoom_out = 0.25
     for x in range(-r, r, 1):
         for y in range(-r, r, 1):
-            color = Noise.noiseFunction(x * zoom_out + position_world[0], y * zoom_out + position_world[1])
-            color = clamp(((color + 1.0) / 2) * 100, 0, 255)
-            display.set_at((x + position_screen[0], y + position_screen[1]), [color, 0, 0])
+            height = Noise.noiseFunction(x * zoom_out + position_world[0], y * zoom_out + position_world[1])
+            color = array([0, 255, 0])
+            if height <= 0:
+                color = array([0, 0, 255])
+            if height >= 1.2:
+                color = array([255, 255, 255])
+
+            color = color * ((height / 10) + 0.5)
+            color[0] = pygame.math.clamp(color[0], 0, 255)
+            color[1] = pygame.math.clamp(color[1], 0, 255)
+            color[2] = pygame.math.clamp(color[2], 0, 255)
+            display.set_at((x + position_screen[0], y + position_screen[1]), color)
 
 
 def program():
+    player = Player()
     while run:
         handleInput()
         update()
