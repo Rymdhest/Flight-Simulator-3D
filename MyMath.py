@@ -4,12 +4,19 @@ from numpy import array
 from numpy import cos
 from numpy import sin
 
+
+def lerp(amount, left, right):
+    return (1.0 - amount) * left + amount * right
+
+
 def barryCentric(p1, p2, p3, pos):
     det = (p2[2] - p3[2]) * (p1[0] - p3[0]) + (p3[0] - p2[0]) * (p1[2] - p3[2])
     l1 = ((p2[2] - p3[2]) * (pos[0] - p3[0]) + (p3[0] - p2[0]) * (pos[1] - p3[2])) / det
     l2 = ((p3[2] - p1[2]) * (pos[0] - p3[0]) + (p1[0] - p3[0]) * (pos[1] - p3[2])) / det
     l3 = 1.0 - l1 - l2
     return l1 * p1[1] + l2 * p2[1] + l3 * p3[1]
+
+
 def createViewMatrix(camera):
     matrix = np.identity(4)
     matrix = createTranslateMatrix(-camera.position) @ matrix
@@ -32,7 +39,6 @@ def createProjectionMatrix(near_plane, far_plane, width, height):
     return projection_matrix
 
 
-
 def createScaleMatrix(scale):
     scale_matrix = np.identity(4)
     scale_matrix[0, 0] = scale[0]
@@ -40,10 +46,12 @@ def createScaleMatrix(scale):
     scale_matrix[2, 2] = scale[2]
     return scale_matrix
 
+
 def createTranslateMatrix(translation):
     translate_matrix = np.identity(4)
     translate_matrix[0:3, 3] = translation
     return translate_matrix
+
 
 def createRotationMatrix(rotation):
     rotation_x_matrix = array([[1, 0, 0, 0],

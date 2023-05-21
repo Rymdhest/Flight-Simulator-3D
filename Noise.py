@@ -1,5 +1,6 @@
 import math
 import pygame
+import MyMath
 
 p = [151, 160, 137, 91, 90, 15,
      131, 13, 201, 95, 96, 53, 194, 233, 7, 225, 140, 36, 103, 30, 69, 142, 8, 99, 37, 240, 21, 10, 23,
@@ -16,8 +17,6 @@ p = [151, 160, 137, 91, 90, 15,
      138, 236, 205, 93, 222, 114, 67, 29, 24, 72, 243, 141, 128, 195, 78, 66, 215, 61, 156, 180] * 2
 
 
-def lerp(amount, left, right):
-    return (1.0 - amount) * left + amount * right
 
 
 def fade(t):
@@ -52,9 +51,9 @@ def noise(x, y):
     u = fade(xf)
     v = fade(yf)
 
-    x1_inter = lerp(u, d1, d2)
-    x2_inter = lerp(u, d3, d4)
-    y_inter = lerp(v, x1_inter, x2_inter)
+    x1_inter = MyMath.lerp(u, d1, d2)
+    x2_inter = MyMath.lerp(u, d3, d4)
+    y_inter = MyMath.lerp(v, x1_inter, x2_inter)
     clamped01 = (y_inter + 0.8123493) / (1 + 2 * 0.3123493);
     return pygame.math.clamp(clamped01, 0.0, 1.0)
 

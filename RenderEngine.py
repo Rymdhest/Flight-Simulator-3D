@@ -1,10 +1,12 @@
+import math
+
 from numpy import array
 import pygame
 import Noise
 import MyMath
 import time
 
-far_plane = 60
+far_plane = 20
 near_plane = 0.1
 width = 1800
 height = 950
@@ -47,7 +49,12 @@ def update():
 
 def render(models):
     polygons = []
-    sky_color = array([178, 255, 255])
+    day_color = array([178, 255, 255])
+    night_color = array([11, 16, 38])
+    time_factor = ((math.sin(time.time())+1)*0.5)
+    sky_color = MyMath.lerp(time_factor, day_color, night_color)
+
+
     display.fill(sky_color)
 
     for model in models:
@@ -55,21 +62,29 @@ def render(models):
             v1 = fromWorldToScreen(model.transformed_vertices[i * 3 + 0])
             v2 = fromWorldToScreen(model.transformed_vertices[i * 3 + 1])
             v3 = fromWorldToScreen(model.transformed_vertices[i * 3 + 2])
-            depth = -(v1[2] + v2[2] + v3[2]) / 3
+            depth = (v1[2] + v2[2] + v3[2]) / 3
             if v1[2] < near_plane or v2[2] < near_plane or v3[2] < near_plane:
                 continue
             else:
                 vertices = array([v1[0:2], v2[0:2], v3[0:2]])
                 polygons.append(Polygon_2D(vertices, model.last_calculated_colors[i], depth))
 
-    polygons.sort(key=lambda x: x.depth)
+    polygons.sort(key=lambda x: x.depth, reverse= True)
 
     for polygon in polygons:
+        #inverterat y-axeln
         polygon.vertices[0][1] = height - polygon.vertices[0][1]
         polygon.vertices[1][1] = height - polygon.vertices[1][1]
         polygon.vertices[2][1] = height - polygon.vertices[2][1]
 
-        pygame.draw.polygon(display, polygon.color, polygon.vertices)
+        fog = (far_plane-polygon.depth)/(far_plane-far_plane*0.5)
+        fog = pygame.math.clamp(fog, 0, 1)
+        color = MyMath.lerp(1-fog, polygon.color, sky_color)
+        color[0] =pygame.math.clamp(color[0], 0, 255)
+        color[1] =pygame.math.clamp(color[1], 0, 255)
+        color[2] =pygame.math.clamp(color[2], 0, 255)
+
+        pygame.draw.polygon(display, color, polygon.vertices)
         # pygame.gfxdraw.filled_polygon(display, polygon.vertices, polygon.color,)
 
     # drawMap(array([int(width / 2), int(height / 2)]), 600, array([camera.position[0], camera.position[2]]))
