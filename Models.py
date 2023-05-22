@@ -32,6 +32,12 @@ class RawModel:
         self.vertices = vertices
         self.colors = colors
 
+
+    def scale(self, scale):
+        new_vertices = np.append(self.vertices, np.ones((len(self.vertices), 1)), axis=1)
+        new_vertices = new_vertices @ MyMath.createScaleMatrix(scale)
+        new_vertices = np.delete(new_vertices, 3, axis=1)
+        self.vertices = new_vertices
     def rotate(self, rotation):
         new_vertices = np.append(self.vertices, np.ones((len(self.vertices), 1)), axis=1)
         new_vertices = new_vertices @ MyMath.createRotationMatrix(rotation)
@@ -250,19 +256,19 @@ def generateAirplane():
     window_color = array([165, 241, 255])
 
     h_ration = 1.15
-    ring_list = [0, 0.1, 0.2, 0.5, 3.5, 4.0]
-    radius_list = [[0.01, 0.01 * h_ration], [0.13, 0.13 * h_ration], [0.2, 0.2 * h_ration], [0.25, 0.4 * h_ration],
+    ring_list = [0.0,  0.2, 0.5, 3.5, 4.0]
+    radius_list = [[0.01, 0.01 * h_ration],[0.2, 0.2 * h_ration], [0.25, 0.4 * h_ration],
                    [0.25, 0.25 * h_ration], [0.1, 0.1 * h_ration]]
 
     raw_model = generateCylinder(9, ring_list, radius_list, body_color)
     raw_model.rotate([0, pi, 0])
     raw_model.rotate([pi / 2, 0, 0])
-    raw_model.colors[(9 * 2) * 2 + 9] = window_color
-    raw_model.colors[(9 * 2) * 2 + 9 - 1] = window_color
-    raw_model.colors[(9 * 2) * 2 + 9 - 2] = window_color
-    raw_model.colors[(9 * 2) * 2 + 9 - 3] = window_color
-    raw_model.colors[(9 * 2) * 2 + 9 + 1] = window_color
-    raw_model.colors[(9 * 2) * 2 + 9 + 2] = window_color
+    raw_model.colors[(9 * 2) * 1 + 9] = window_color
+    raw_model.colors[(9 * 2) * 1 + 9 - 1] = window_color
+    raw_model.colors[(9 * 2) * 1 + 9 - 2] = window_color
+    raw_model.colors[(9 * 2) * 1 + 9 - 3] = window_color
+    raw_model.colors[(9 * 2) * 1 + 9 + 1] = window_color
+    raw_model.colors[(9 * 2) * 1 + 9 + 2] = window_color
 
     for i in range(len(raw_model.vertices)):
         if raw_model.vertices[i][1] < -0.20:
@@ -299,6 +305,8 @@ def generateAirplane():
     wing1 = generateBox([0.02, 0, 0.15], [0.02, .4, 0.04], [0, 0.0, -0.25], body_color)
     wing1.translate(array([-1.93, 0.02, -2.4]))
     raw_model.add(wing1)
+
+    raw_model.scale(array([0.5, 0.5, 0.5]))
 
     plane = Model(array([0, 0, 0]), raw_model.vertices, raw_model.colors)
     return plane

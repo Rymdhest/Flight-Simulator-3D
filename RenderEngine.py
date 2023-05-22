@@ -33,9 +33,6 @@ class Camera:
 
 
 camera = Camera()
-camera.position[0] = 9500
-camera.position[1] = 6
-camera.position[0] = 9500
 
 view_matrix = MyMath.createViewMatrix(camera)
 projection_matrix = MyMath.createProjectionMatrix(near_plane, far_plane, display.get_width(), display.get_height())

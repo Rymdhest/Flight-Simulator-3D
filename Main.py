@@ -1,6 +1,8 @@
 import pygame
 import time
 import pygame.gfxdraw
+
+import Noise
 import RenderEngine
 from MyMath import *
 import Models
@@ -11,14 +13,44 @@ run = True
 
 class Player:
     def __init__(self):
-        self.position = array([0, 0, 0])
-        self.velocity = array([0, 0, 0])
 
         self.model = Models.generateAirplane()
-        self.model.position = RenderEngine.camera.position + array([0, 3, 3])
+        self.model.position[1] = 6
         models_needing_update.append(self.model)
         models.append(self.model)
 
+        self.momentum = array([0.0, 0.0, 0.0])
+
+    def increaseForwardMomentum(self, direction):
+        speed = 0.75
+        amount = speed*direction*RenderEngine.delta
+        forward_vector = array([0.0, 0.0, amount, 1.0])
+        forward_vector = forward_vector @ createRotationMatrix(self.model.rotation)
+        forward_vector = np.delete(forward_vector, -1)
+        self.momentum += forward_vector
+
+
+    def update(self):
+        delta = RenderEngine.delta
+        gravity = -0.6 * delta
+        lift_power = ((-self.model.position[1]**3)*0.001+1)*0.5
+        lift_vector = array([0.0, self.momentum[2] * lift_power * delta, 0.0, 1.0])
+        lift_vector = lift_vector @ createRotationMatrix(self.model.rotation)
+        lift_vector = np.delete(lift_vector, -1)
+        self.momentum = self.momentum+lift_vector
+
+        self.model.position = self.model.position+self.momentum*RenderEngine.delta
+
+        ground_height = Noise.noiseFunction(self.model.position[0], self.model.position[2])
+        if self.model.position[1] < ground_height+0.2:
+            self.model.position[1] = ground_height+0.2
+            self.momentum = self.momentum - self.momentum*delta*0.3
+
+            self.model.rotation[0] = 0
+            self.model.rotation[2] = 0
+        else:
+            self.momentum[1] = self.momentum[1] + gravity
+            self.momentum = self.momentum - self.momentum*delta*0.1
 
 class Chunk:
     chunk_size = 4
@@ -41,11 +73,11 @@ class Chunk:
 models = []
 models_needing_update = []
 chunks = []
-
+player = Player()
 
 def handleInput():
     delta = RenderEngine.delta
-    speed = 8.0
+
     turnspeed = 2.5
     camera = RenderEngine.camera
     for event in pygame.event.get():
@@ -54,34 +86,26 @@ def handleInput():
             run = False
         if event.type == MOUSEMOTION:
             movement = pygame.mouse.get_rel()
-            camera.rotation[2] += movement[0] * delta * 0.01
-            camera.rotation[0] -= movement[1] * delta * 0.01
+            player.model.rotation[2] -= movement[0] * delta * 0.05
+            player.model.rotation[0] += movement[1] * delta * 0.05
     keys = pygame.key.get_pressed()
 
     if keys[K_w]:
-        camera.position[0] -= speed * delta * sin(-camera.rotation[1])
-        camera.position[2] -= speed * delta * cos(-camera.rotation[1])
-        camera.position[1] += speed * delta * sin(-camera.rotation[0])
+        player.increaseForwardMomentum(1)
     if keys[K_s]:
-        camera.position[0] += speed * delta * sin(-camera.rotation[1])
-        camera.position[2] += speed * delta * cos(-camera.rotation[1])
-        camera.position[1] -= speed * delta * sin(-camera.rotation[0])
+        player.increaseForwardMomentum(-1)
     if keys[K_a]:
-        camera.rotation[1] -= turnspeed * delta
+        player.model.rotation[1] -= turnspeed * delta
     if keys[K_d]:
-        camera.rotation[1] += turnspeed * delta
-    if keys[K_q]:
-        camera.position[1] -= speed * delta
-    if keys[K_e]:
-        camera.position[1] += speed * delta
+        player.model.rotation[1] += turnspeed * delta
     if keys[K_r]:
-        camera.rotation[0] -= turnspeed * delta
+        player.model.rotation[0] += turnspeed * delta
     if keys[K_f]:
-        camera.rotation[0] += turnspeed * delta
-    if keys[K_c]:
-        camera.rotation[2] += turnspeed * delta
-    if keys[K_v]:
-        camera.rotation[2] -= turnspeed * delta
+        player.model.rotation[0] -= turnspeed * delta
+    if keys[K_q]:
+        player.model.rotation[2] += turnspeed * delta
+    if keys[K_e]:
+        player.model.rotation[2] -= turnspeed * delta
 
 
 def hasChunk(x, y):
@@ -91,22 +115,35 @@ def hasChunk(x, y):
 
 
 def update():
-    RenderEngine.update()
+
+    player.update()
+
+    camera = RenderEngine.camera
+    camera_offset = array([0, 2, -4])
+
+    camera_pos = np.append(camera_offset, 1.0)
+    camera_pos = camera_pos @ createRotationMatrix(player.model.rotation)
+    camera_pos = np.delete(camera_pos, -1)
+
+    camera.position = player.model.position+camera_pos
+
+    camera.rotation[0] = -player.model.rotation[0]+math.pi/8
+    camera.rotation[1] = player.model.rotation[1]-math.pi
+
+    camera.rotation[2] = player.model.rotation[2]
+
     light_direction = array([0.9, -0.7, .9])
     light_direction = light_direction / np.linalg.norm(light_direction)
 
-    ##TA BORT ENDAST FULT TEST
-    models[0].rotation[0] = sin(time.time() * 0.6) * 0.3
-    models[0].rotation[1] = sin(time.time() * 0.3) * 0.9
-    models[0].rotation[2] = sin(time.time() * 0.7) * 0.7
-    models_needing_update.append(models[0])
+    models_needing_update.append(player.model)
 
     load_chunk_world_distance = 8
     distance = load_chunk_world_distance
-    camera = RenderEngine.camera
+
     x = camera.position[0] - distance * sin(-camera.rotation[1])
     z = camera.position[2] - distance * cos(-camera.rotation[1])
     target_point = array([x / Chunk.chunk_size, z / Chunk.chunk_size])
+    RenderEngine.update()
 
     for model in models_needing_update:
         transformed_vertices = np.append(model.vertices, np.ones((len(model.vertices), 1)), axis=1)
@@ -149,7 +186,7 @@ def render():
 
 
 def program():
-    player = Player()
+
     while run:
         handleInput()
         update()
