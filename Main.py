@@ -1,7 +1,11 @@
+import math
+
+import numpy as np
 import pygame
 import time
 import pygame.gfxdraw
 
+import MyMath
 import Noise
 import RenderEngine
 from MyMath import *
@@ -25,7 +29,7 @@ class Player:
         speed = 0.75
         amount = speed*direction*RenderEngine.delta
         forward_vector = array([0.0, 0.0, amount, 1.0])
-        forward_vector = forward_vector @ createRotationMatrix(self.model.rotation)
+        forward_vector = forward_vector @ self.model.rotation_matrix
         forward_vector = np.delete(forward_vector, -1)
         self.momentum += forward_vector
 
@@ -35,7 +39,7 @@ class Player:
         gravity = -0.6 * delta
         lift_power = ((-self.model.position[1]**3)*0.001+1)*0.5
         lift_vector = array([0.0, self.momentum[2] * lift_power * delta, 0.0, 1.0])
-        lift_vector = lift_vector @ createRotationMatrix(self.model.rotation)
+        lift_vector = lift_vector @ self.model.rotation_matrix
         lift_vector = np.delete(lift_vector, -1)
         self.momentum = self.momentum+lift_vector
 
@@ -46,8 +50,6 @@ class Player:
             self.model.position[1] = ground_height+0.2
             self.momentum = self.momentum - self.momentum*delta*0.3
 
-            self.model.rotation[0] = 0
-            self.model.rotation[2] = 0
         else:
             self.momentum[1] = self.momentum[1] + gravity
             self.momentum = self.momentum - self.momentum*delta*0.1
@@ -77,7 +79,6 @@ player = Player()
 
 def handleInput():
     delta = RenderEngine.delta
-
     turnspeed = 2.5
     camera = RenderEngine.camera
     for event in pygame.event.get():
@@ -86,8 +87,13 @@ def handleInput():
             run = False
         if event.type == MOUSEMOTION:
             movement = pygame.mouse.get_rel()
-            player.model.rotation[2] -= movement[0] * delta * 0.05
-            player.model.rotation[0] += movement[1] * delta * 0.05
+
+            player.model.rotate(array([0,0, -movement[0] * delta * 0.05]))
+
+            player.model.rotate(array([movement[1] * delta * 0.05 ,0 ,0]))
+
+            #pygame.mouse.set_visible(False)
+            #pygame.mouse.set_pos([255, 255])
     keys = pygame.key.get_pressed()
 
     if keys[K_w]:
@@ -95,17 +101,24 @@ def handleInput():
     if keys[K_s]:
         player.increaseForwardMomentum(-1)
     if keys[K_a]:
-        player.model.rotation[1] -= turnspeed * delta
+        player.model.rotate(array([0, -turnspeed * delta, 0]))
     if keys[K_d]:
-        player.model.rotation[1] += turnspeed * delta
+        player.model.rotate(array([0, turnspeed * delta, 0]))
+       #player.model.rotation[1] += turnspeed * delta
     if keys[K_r]:
-        player.model.rotation[0] += turnspeed * delta
+        player.model.rotate(array([turnspeed * delta, 0, 0]))
+        #player.model.rotation[0] += turnspeed * delta
     if keys[K_f]:
-        player.model.rotation[0] -= turnspeed * delta
+        player.model.rotate(array([-turnspeed * delta, 0, 0]))
+        #player.model.rotation[0] -= turnspeed * delta
     if keys[K_q]:
-        player.model.rotation[2] += turnspeed * delta
+        player.model.rotate(array([0, 0, turnspeed * delta]))
+        #player.model.rotation[2] += turnspeed * delta
     if keys[K_e]:
-        player.model.rotation[2] -= turnspeed * delta
+        player.model.rotate(array([0, 0, -turnspeed * delta]))
+        #player.model.rotation[2] -= turnspeed * delta
+
+
 
 
 def hasChunk(x, y):
@@ -119,18 +132,22 @@ def update():
     player.update()
 
     camera = RenderEngine.camera
-    camera_offset = array([0, 2, -4])
+    camera_offset = array([0, 2.5, -5])
 
-    camera_pos = np.append(camera_offset, 1.0)
-    camera_pos = camera_pos @ createRotationMatrix(player.model.rotation)
-    camera_pos = np.delete(camera_pos, -1)
+    #camera.rotation_matrix = MyMath.createRotationMatrix([0, 0, 0])
+    camera.rotation_matrix = np.identity(4)
+    camera.rotation_matrix = camera.rotation_matrix @ MyMath.createRotationMatrix(array([math.pi / 8, math.pi, 0, 1.0]))
 
-    camera.position = player.model.position+camera_pos
+    camera.rotation_matrix = camera.rotation_matrix @ np.copy(player.model.rotation_matrix)
 
-    camera.rotation[0] = -player.model.rotation[0]+math.pi/8
-    camera.rotation[1] = player.model.rotation[1]-math.pi
+    #camera.rotation_matrix = camera.rotation_matrix @ MyMath.createRotationMatrix(array([0, player_rotation[1], 0, 1.0]))
+    #camera.rotate([player_rotation[0], player_rotation[1], player_rotation[2]])
 
-    camera.rotation[2] = player.model.rotation[2]
+    camera_offset = np.append(camera_offset, 1.0)
+    camera_offset = camera_offset @ player.model.rotation_matrix
+    camera_offset = np.delete(camera_offset, -1)
+    camera.position = player.model.position+camera_offset
+
 
     light_direction = array([0.9, -0.7, .9])
     light_direction = light_direction / np.linalg.norm(light_direction)
@@ -140,19 +157,22 @@ def update():
     load_chunk_world_distance = 8
     distance = load_chunk_world_distance
 
-    x = camera.position[0] - distance * sin(-camera.rotation[1])
-    z = camera.position[2] - distance * cos(-camera.rotation[1])
+    x = camera.position[0]
+    z = camera.position[2]
     target_point = array([x / Chunk.chunk_size, z / Chunk.chunk_size])
     RenderEngine.update()
 
     for model in models_needing_update:
         transformed_vertices = np.append(model.vertices, np.ones((len(model.vertices), 1)), axis=1)
-        transformed_vertices = transformed_vertices @ createRotationMatrix(model.rotation)
+
+
         transformed_vertices = transformed_vertices @ createScaleMatrix(model.scale)
+        transformed_vertices = transformed_vertices @ model.rotation_matrix
         transformed_vertices = transformed_vertices + (np.append(model.position, 1.0))
 
+
         transformed_normals = np.append(model.normals, np.ones((len(model.normals), 1)), axis=1)
-        transformed_normals = transformed_normals @ createRotationMatrix(model.rotation)
+        transformed_normals = transformed_normals @ model.rotation_matrix
         for i in range(int(len(transformed_vertices) / 3)):
             lighting = np.dot(transformed_normals[i][0:3], light_direction)
             lighting = max(lighting, 0.0) + 0.4

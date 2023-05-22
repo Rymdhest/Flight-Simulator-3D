@@ -1,5 +1,6 @@
 import math
 
+import numpy as np
 from numpy import array
 import pygame
 import Noise
@@ -29,7 +30,12 @@ class Polygon_2D:
 class Camera:
     def __init__(self):
         self.position = array([0.0, 0.0, 0.0])
-        self.rotation = array([0.0, 0, 0.0, 0.0])
+        self.rotation_matrix = np.identity(4)
+
+    def rotate(self, rotation):
+        rotation = np.append(rotation, 1.0)
+        rotation = rotation @ self.rotation_matrix
+        self.rotation_matrix = self.rotation_matrix @ MyMath.createRotationMatrix(rotation)
 
 
 camera = Camera()

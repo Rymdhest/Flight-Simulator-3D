@@ -17,14 +17,18 @@ class Model:
         self.vertices = vertices
         self.transformed_vertices = np.append(vertices, np.ones((len(vertices), 1)), axis=1)
         self.colors = colors
-        self.last_calculated_colors = np.zeros(shape=(len(colors), 3))
-        self.rotation = array([0.0, 0.0, 0.0])
+        self.last_calculated_colors = np.ones(shape=(len(colors), 3))
+        self.rotation_matrix = MyMath.createRotationMatrix([0, 0, 0])
         self.normals = np.zeros((int(len(vertices) / 3), 3))
         for i in range(len(self.normals)):
             v1 = vertices[i * 3 + 1] - vertices[i * 3 + 0]
             v2 = vertices[i * 3 + 2] - vertices[i * 3 + 0]
             normal = np.cross(v1, v2)
             self.normals[i] = normal / np.linalg.norm(normal)
+
+    def rotate(self, rotation):
+        rotation = np.append(rotation, 1.0) @ self.rotation_matrix
+        self.rotation_matrix = self.rotation_matrix @ MyMath.createRotationMatrix(rotation)
 
 
 class RawModel:
