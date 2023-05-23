@@ -36,9 +36,9 @@ class Player:
 
     def update(self):
         delta = RenderEngine.delta
-        gravity = -0.6 * delta
-        lift_power = ((-self.model.position[1]**3)*0.001+1)*0.5
-        lift_vector = array([0.0, self.momentum[2] * lift_power * delta, 0.0, 1.0])
+        gravity = -0.6 * delta*0
+        lift_power = ((-self.model.position[1]**3)*0.001+1)*0.2
+        lift_vector = array([0.0, np.linalg.norm(self.momentum) * lift_power * delta, 0.0, 1.0])
         lift_vector = lift_vector @ self.model.rotation_matrix
         lift_vector = np.delete(lift_vector, -1)
         self.momentum = self.momentum+lift_vector
@@ -154,11 +154,13 @@ def update():
 
     models_needing_update.append(player.model)
 
-    load_chunk_world_distance = 8
+    load_chunk_world_distance = 9
     distance = load_chunk_world_distance
 
-    x = camera.position[0]
-    z = camera.position[2]
+    forward = array([0, 0, -18, 1.0]) @ camera.rotation_matrix
+    x = camera.position[0] + forward[0]
+    z = camera.position[2] +forward[2]
+
     target_point = array([x / Chunk.chunk_size, z / Chunk.chunk_size])
     RenderEngine.update()
 
