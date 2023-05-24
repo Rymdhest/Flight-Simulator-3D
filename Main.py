@@ -1,6 +1,7 @@
 import math
 
 import numpy as np
+import numpy.linalg
 import pygame
 import time
 import MyMath
@@ -25,8 +26,9 @@ class Player:
 
         self.momentum = array([0.0, 0.0, 0.0])
 
+
     def increaseForwardMomentum(self, direction):
-        speed = 0.75
+        speed = 0.035
         amount = speed * direction * RenderEngine.delta
         forward_vector = array([0.0, 0.0, amount, 1.0])
         forward_vector = forward_vector @ self.model.rotation_matrix
@@ -35,23 +37,40 @@ class Player:
 
     def update(self):
         delta = RenderEngine.delta
-        gravity = -0.6 * delta
-        lift_power = ((-self.model.position[1] ** 3) * 0.001 + 1) * 0.2
-        lift_vector = array([0.0, np.linalg.norm(self.momentum) * lift_power * delta, 0.0, 1.0])
+        gravity = -0.09 * delta
+        air_pressure = ((-self.model.position[1] ** 3) * 0.001 + 1)
+        speed = np.linalg.norm(self.momentum)
+        lift_power = air_pressure * 0.45
+        lift_vector = array([0.0, speed * lift_power * delta, 0.0, 1.0])
         lift_vector = lift_vector @ self.model.rotation_matrix
         lift_vector = np.delete(lift_vector, -1)
+
+
+
+
         self.momentum = self.momentum + lift_vector
 
-        self.model.position = self.model.position + self.momentum * RenderEngine.delta
 
         ground_height = Noise.noiseFunction(self.model.position[0], self.model.position[2])
         if self.model.position[1] < ground_height + 0.2:
             self.model.position[1] = ground_height + 0.2
-            self.momentum = self.momentum - self.momentum * delta * 0.3
+            self.momentum = self.momentum - self.momentum * delta * 0.15
+            self.momentum[1] = 0
 
         else:
             self.momentum[1] = self.momentum[1] + gravity
             self.momentum = self.momentum - self.momentum * delta * 0.1
+
+        all_momentun_forward =  np.delete( (np.array([0.0 ,0.0, 1.0, 1.0])*speed) @ self.model.rotation_matrix, -1)
+        air_grip = (1-1/(20.0*delta*(speed**2)+1))
+
+        print(air_grip)
+
+        dy = -self.momentum[1]
+        self.momentum = self.momentum+self.momentum*dy*0.05
+        self.momentum = self.momentum*(1-air_grip) + all_momentun_forward*(air_grip)
+
+        self.model.position = self.model.position + self.momentum
 
 
 class Chunk:
