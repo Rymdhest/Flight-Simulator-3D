@@ -33,7 +33,7 @@ class Player:
 
     def update(self):
         delta = RenderEngine.delta
-        gravity = -0.6 * delta*0
+        gravity = -0.6 * delta
         lift_power = ((-self.model.position[1]**3)*0.001+1)*0.2
         lift_vector = array([0.0, np.linalg.norm(self.momentum) * lift_power * delta, 0.0, 1.0])
         lift_vector = lift_vector @ self.model.rotation_matrix
@@ -52,7 +52,7 @@ class Player:
             self.momentum = self.momentum - self.momentum*delta*0.1
 
 class Chunk:
-    chunk_size = 4
+    chunk_size = 2
 
     def __init__(self, x, y):
         self.x = int(x)
@@ -73,24 +73,32 @@ models = []
 models_needing_update = []
 chunks = []
 player = Player()
+mouse_down_coords = []
 
 def handleInput():
     delta = RenderEngine.delta
+    global mouse_down_coords
     turnspeed = 2.5
-    camera = RenderEngine.camera
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             global run
             run = False
-        if event.type == MOUSEMOTION:
+
+        if event.type == MOUSEBUTTONDOWN:
+            pygame.mouse.set_visible(False)
+            mouse_down_coords = pygame.mouse.get_pos()
+        if event.type == MOUSEBUTTONUP:
+            pygame.mouse.set_visible(True)
+            pygame.mouse.set_pos(mouse_down_coords)
+        if event.type == MOUSEMOTION and not pygame.mouse.get_visible():
             movement = pygame.mouse.get_rel()
 
             player.model.rotate(array([0,0, -movement[0] * delta * 0.05]))
-
             player.model.rotate(array([movement[1] * delta * 0.05 ,0 ,0]))
 
-            #pygame.mouse.set_visible(False)
-            #pygame.mouse.set_pos([255, 255])
+            pygame.mouse.set_pos([RenderEngine.width/2, RenderEngine.height/2])
+        else:
+            pygame.mouse.get_rel()
     keys = pygame.key.get_pressed()
 
     if keys[K_w]:
@@ -101,19 +109,14 @@ def handleInput():
         player.model.rotate(array([0, -turnspeed * delta, 0]))
     if keys[K_d]:
         player.model.rotate(array([0, turnspeed * delta, 0]))
-       #player.model.rotation[1] += turnspeed * delta
     if keys[K_r]:
         player.model.rotate(array([turnspeed * delta, 0, 0]))
-        #player.model.rotation[0] += turnspeed * delta
     if keys[K_f]:
         player.model.rotate(array([-turnspeed * delta, 0, 0]))
-        #player.model.rotation[0] -= turnspeed * delta
     if keys[K_q]:
         player.model.rotate(array([0, 0, turnspeed * delta]))
-        #player.model.rotation[2] += turnspeed * delta
     if keys[K_e]:
         player.model.rotate(array([0, 0, -turnspeed * delta]))
-        #player.model.rotation[2] -= turnspeed * delta
 
 
 
@@ -151,15 +154,35 @@ def update():
 
     models_needing_update.append(player.model)
 
-    load_chunk_world_distance = 9
+    load_chunk_world_distance = 8
     distance = load_chunk_world_distance
 
-    forward = array([0, 0, -18, 1.0]) @ camera.rotation_matrix
+    forward = array([0, 0, -14, 1.0]) @ camera.rotation_matrix
     x = camera.position[0] + forward[0]
     z = camera.position[2] +forward[2]
 
     target_point = array([x / Chunk.chunk_size, z / Chunk.chunk_size])
     RenderEngine.update()
+
+
+
+    for i in range(len(chunks) - 1, - 1, -1):
+        if getDistanceBetween_2D(chunks[i].center_world_pos,
+                                 array([x, z])) > load_chunk_world_distance + Chunk.chunk_size * 2:
+            chunks[i].cleanUp()
+            chunks.remove(chunks[i])
+
+    r = int(load_chunk_world_distance / Chunk.chunk_size)
+    target_x = int(target_point[0])
+    target_y = int(target_point[1])
+    i = 0
+    for y in range(-r, r, 1):
+        for x in range(-r, r, 1):
+            if not hasChunk(target_x + x, target_y + y):
+                chunks.append(Chunk(target_x + x, target_y + y))
+                i += 1
+    if i > 0:
+        print(f"added {i} chunks")
 
     for model in models_needing_update:
         transformed_vertices = np.append(model.vertices, np.ones((len(model.vertices), 1)), axis=1)
@@ -181,30 +204,12 @@ def update():
             model.transformed_vertices = transformed_vertices
     models_needing_update.clear()
 
-    for i in range(len(chunks) - 1, - 1, -1):
-        if getDistanceBetween_2D(chunks[i].center_world_pos,
-                                 array([x, z])) > load_chunk_world_distance + Chunk.chunk_size * 2:
-            chunks[i].cleanUp()
-            chunks.remove(chunks[i])
-
-    r = int(load_chunk_world_distance / Chunk.chunk_size)
-    target_x = int(target_point[0])
-    target_y = int(target_point[1])
-    i = 0
-    for y in range(-r, r, 1):
-        for x in range(-r, r, 1):
-            if not hasChunk(target_x + x, target_y + y):
-                chunks.append(Chunk(target_x + x, target_y + y))
-                i += 1
-    if i > 0:
-        print(f"added {i} chunks")
-
-
 def render():
-    RenderEngine.render(models)
+    RenderEngine.render(models, player)
 
 
 def program():
+    #RenderEngine.drawMap(array([int(RenderEngine.width / 2), int(RenderEngine.height / 2)]), 100, array([player.model.position[0], player.model.position[2]]))
 
     while run:
         handleInput()

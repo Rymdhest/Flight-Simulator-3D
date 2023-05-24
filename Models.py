@@ -15,11 +15,12 @@ class Model:
         self.position = position
         self.scale = array([1.0, 1.0, 1.0])
         self.vertices = vertices
-        self.transformed_vertices = np.append(vertices, np.ones((len(vertices), 1)), axis=1)
+        self.rotation_matrix = MyMath.createRotationMatrix([0, 0, 0])
+        self.transformed_vertices = np.append(vertices, np.zeros((len(vertices), 1)), axis=1)
+        #self.transformed_vertices = self.transformed_vertices @ self.rotation_matrix
         self.colors = colors
         self.last_calculated_colors = np.ones(shape=(len(colors), 3))
-        self.rotation_matrix = MyMath.createRotationMatrix([0, 0, 0])
-        self.normals = np.zeros((int(len(vertices) / 3), 3))
+        self.normals = np.ones((int(len(vertices) / 3), 3))
         for i in range(len(self.normals)):
             v1 = vertices[i * 3 + 1] - vertices[i * 3 + 0]
             v2 = vertices[i * 3 + 2] - vertices[i * 3 + 0]
@@ -29,6 +30,7 @@ class Model:
     def rotate(self, rotation):
         rotation = np.append(rotation, 1.0) @ self.rotation_matrix
         self.rotation_matrix = self.rotation_matrix @ MyMath.createRotationMatrix(rotation)
+
 
 
 class RawModel:

@@ -50,15 +50,16 @@ def update():
     calcDelta()
 
 
-def render(models):
+def render(models, player):
     polygons = []
     day_color = array([178, 255, 255])
     night_color = array([11, 16, 38])
     time_factor = ((math.sin(time.time())+1)*0.5)
     sky_color = MyMath.lerp(time_factor, day_color, night_color)
 
+    viewport = pygame.Rect(0, 0, display.get_width(), display.get_height())
 
-    display.fill(sky_color)
+    display.fill(sky_color, rect=viewport)
 
     for model in models:
         for i in range(int(len(model.transformed_vertices) / 3)):
@@ -90,9 +91,10 @@ def render(models):
         pygame.draw.polygon(display, color, polygon.vertices)
         # pygame.gfxdraw.filled_polygon(display, polygon.vertices, polygon.color,)
 
-    # drawMap(array([int(width / 2), int(height / 2)]), 600, array([camera.position[0], camera.position[2]]))
-    # pygame.display.update()
-    pygame.display.flip()
+
+    #drawMap(array([int(width / 2), int(height)]), player)
+
+    pygame.display.update()
 
 
 def calcDelta():
@@ -111,13 +113,25 @@ def calcDelta():
     frames_current_second += 1
     last_frame_time = current_frame_time
 
+map_resolution = 50
+surface = pygame.Surface((map_resolution, map_resolution))
+i = 0
+def drawMap(position_screen, player):
+    r = int(map_resolution / 2)
+    global surface
+    zoom_out = 0.35
 
-def drawMap(position_screen, resolution, position_world):
-    r = int(resolution / 2)
-    zoom_out = 0.25
+    forward = np.append(player.model.position+array([0, 0, 1]), 1.0)@player.model.rotation_matrix
+    dx = forward[0]-player.model.position[0]
+    dz = forward[2]-player.model.position[2]
+    angle_y = np.arctan2(dx, dz)
+
     for x in range(-r, r, 1):
         for y in range(-r, r, 1):
-            height = Noise.noiseFunction(x * zoom_out + position_world[0], y * zoom_out + position_world[1])
+            noise_x = (x * zoom_out + player.model.position[0])
+            noise_y = (y * zoom_out + player.model.position[2])
+            rotated = array([noise_x, 0, noise_y, 1.0]) @ MyMath.createRotationMatrix([0, angle_y+math.pi/2, 0])
+            height = Noise.noiseFunction(rotated[0], rotated[2])
             color = array([0, 255, 0])
             if height <= 0:
                 color = array([0, 0, 255])
@@ -128,8 +142,12 @@ def drawMap(position_screen, resolution, position_world):
             color[0] = pygame.math.clamp(color[0], 0, 255)
             color[1] = pygame.math.clamp(color[1], 0, 255)
             color[2] = pygame.math.clamp(color[2], 0, 255)
-            display.set_at((x + position_screen[0], y + position_screen[1]), color)
 
+
+            surface.set_at((r +x , r+y), color)
+
+
+    display.blit(surface, (position_screen[0]-r, position_screen[1]-map_resolution))
 
 def fromWorldToScreen(point_3D):
     clipspace_position = projection_matrix @ view_matrix @ point_3D
