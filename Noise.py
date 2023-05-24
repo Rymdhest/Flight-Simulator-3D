@@ -59,7 +59,7 @@ def noise(x, y):
 
 
 def noiseFunction(x, y):
-    iterations = 3
+    iterations = 1
     frequency = 0.0721
     amplitude = (noise(4342 - x * 0.0521, 7654 - y * 0.0521) ** 2) * 10
     value = 0

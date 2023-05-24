@@ -15,9 +15,9 @@ class Model:
         self.position = position
         self.scale = array([1.0, 1.0, 1.0])
         self.vertices = vertices
-        self.rotation_matrix = MyMath.createRotationMatrix([0, 0, 0])
+        self.rotation_matrix = MyMath.createRotationMatrix([0.0, 0.0, 0.0])
         self.transformed_vertices = np.append(vertices, np.zeros((len(vertices), 1)), axis=1)
-        #self.transformed_vertices = self.transformed_vertices @ self.rotation_matrix
+        self.transformed_vertices = self.transformed_vertices @ self.rotation_matrix
         self.colors = colors
         self.last_calculated_colors = np.ones(shape=(len(colors), 3))
         self.normals = np.ones((int(len(vertices) / 3), 3))
@@ -76,7 +76,7 @@ def generateTerrainChunkModel(start_x, start_y, size):
             center_height = (v1[1] + v2[1] + v3[1]) / 3
 
             snow_color = array([236, 255, 253])
-            water_color = array([33, 98, 227]) * (-clamp(center_height, -1, -0.5))
+            water_color = array([33, 98, 227]) * ((center_height / 20) + 0.5)
             grass_color = array([72, 144, 48])
 
             polygon_1 = array([v1, v2, v3])

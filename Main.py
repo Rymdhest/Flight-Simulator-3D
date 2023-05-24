@@ -76,13 +76,15 @@ models = []
 models_needing_update = []
 chunks = []
 player = Player()
-mouse_down_coords = []
-
+player.model.rotate([0, math.pi, 0])
+mouse_down_coords = [0,0]
+camera_offset_angle = array([0.0,0.0])
 
 def handleInput():
     delta = RenderEngine.delta
     global mouse_down_coords
     turnspeed = 2.5
+    global camera_offset_angle
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             global run
@@ -91,16 +93,25 @@ def handleInput():
         if event.type == MOUSEBUTTONDOWN:
             pygame.mouse.set_visible(False)
             mouse_down_coords = pygame.mouse.get_pos()
+
         if event.type == MOUSEBUTTONUP:
             pygame.mouse.set_visible(True)
             pygame.mouse.set_pos(mouse_down_coords)
-        if event.type == MOUSEMOTION and not pygame.mouse.get_visible():
+            camera_offset_angle[0] = 0
+            camera_offset_angle[1] = 0
+        if event.type == MOUSEMOTION and pygame.mouse.get_pressed()[0]:
             movement = pygame.mouse.get_rel()
 
             player.model.rotate(array([0, 0, -movement[0] * delta * 0.05]))
             player.model.rotate(array([movement[1] * delta * 0.05, 0, 0]))
 
             pygame.mouse.set_pos([RenderEngine.width / 2, RenderEngine.height / 2])
+        elif event.type == MOUSEMOTION and pygame.mouse.get_pressed()[2]:
+            movement = pygame.mouse.get_rel()
+
+            camera_offset_angle[0] += movement[0]*delta*0.05
+            camera_offset_angle[1] -= movement[1]*delta*0.05
+            print(camera_offset_angle)
         else:
             pygame.mouse.get_rel()
     keys = pygame.key.get_pressed()
@@ -123,6 +134,7 @@ def handleInput():
         player.model.rotate(array([0, 0, -turnspeed * delta]))
     if keys[K_KP_PLUS]:
         RenderEngine.map_zoom_out -= 0.5*delta
+        print(RenderEngine.map_zoom_out)
     if keys[K_KP_MINUS]:
         RenderEngine.map_zoom_out += 0.5*delta
         print(RenderEngine.map_zoom_out)
@@ -136,19 +148,25 @@ def hasChunk(x, y):
 
 def update():
     player.update()
-
+    global camera_offset_angle
     camera = RenderEngine.camera
     camera_offset = array([0, 2.5, -5])
 
     camera.rotation_matrix = np.identity(4)
     camera.rotation_matrix = camera.rotation_matrix @ MyMath.createRotationMatrix(array([math.pi / 8, math.pi, 0, 1.0]))
+    camera.rotation_matrix = camera.rotation_matrix @ MyMath.createRotationMatrix(array([camera_offset_angle[1], camera_offset_angle[0], 0]))
 
     camera.rotation_matrix = camera.rotation_matrix @ np.copy(player.model.rotation_matrix)
 
     camera_offset = np.append(camera_offset, 1.0)
-    camera_offset = camera_offset @ player.model.rotation_matrix
+    camera_offset = camera_offset  @ MyMath.createRotationMatrix(array([camera_offset_angle[1], camera_offset_angle[0], 0]))@ player.model.rotation_matrix
     camera_offset = np.delete(camera_offset, -1)
+
     camera.position = player.model.position + camera_offset
+    offset = 1
+    height_at_camera = Noise.noiseFunction(camera.position[0], camera.position[2])
+    if camera.position[1] <= height_at_camera+offset:
+        camera.position[1] = height_at_camera+offset
 
     light_direction = array([0.9, -0.7, .9])
     light_direction = light_direction / np.linalg.norm(light_direction)

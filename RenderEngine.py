@@ -115,7 +115,7 @@ def calcDelta():
     last_frame_time = current_frame_time
 
 
-map_resolution = 150
+map_resolution = 120
 surface = pygame.Surface((map_resolution, map_resolution))
 i = 9999999
 player_map_position = []
