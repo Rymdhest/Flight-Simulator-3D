@@ -3,15 +3,12 @@ import math
 import numpy as np
 import pygame
 import time
-import pygame.gfxdraw
-
 import MyMath
 import Noise
 import RenderEngine
 from MyMath import *
 import Models
 from pygame.locals import *  ## allt för att hämta konstanter till varje tangent
-
 run = True
 
 
