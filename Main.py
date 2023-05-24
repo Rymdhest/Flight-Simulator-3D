@@ -9,6 +9,7 @@ import RenderEngine
 from MyMath import *
 import Models
 from pygame.locals import *  ## allt för att hämta konstanter till varje tangent
+
 run = True
 
 
@@ -17,6 +18,8 @@ class Player:
 
         self.model = Models.generateAirplane()
         self.model.position[1] = 6
+        self.model.position[0] = 5645
+        self.model.position[2] = 4567868
         models_needing_update.append(self.model)
         models.append(self.model)
 
@@ -24,32 +27,32 @@ class Player:
 
     def increaseForwardMomentum(self, direction):
         speed = 0.75
-        amount = speed*direction*RenderEngine.delta
+        amount = speed * direction * RenderEngine.delta
         forward_vector = array([0.0, 0.0, amount, 1.0])
         forward_vector = forward_vector @ self.model.rotation_matrix
         forward_vector = np.delete(forward_vector, -1)
         self.momentum += forward_vector
 
-
     def update(self):
         delta = RenderEngine.delta
         gravity = -0.6 * delta
-        lift_power = ((-self.model.position[1]**3)*0.001+1)*0.2
+        lift_power = ((-self.model.position[1] ** 3) * 0.001 + 1) * 0.2
         lift_vector = array([0.0, np.linalg.norm(self.momentum) * lift_power * delta, 0.0, 1.0])
         lift_vector = lift_vector @ self.model.rotation_matrix
         lift_vector = np.delete(lift_vector, -1)
-        self.momentum = self.momentum+lift_vector
+        self.momentum = self.momentum + lift_vector
 
-        self.model.position = self.model.position+self.momentum*RenderEngine.delta
+        self.model.position = self.model.position + self.momentum * RenderEngine.delta
 
         ground_height = Noise.noiseFunction(self.model.position[0], self.model.position[2])
-        if self.model.position[1] < ground_height+0.2:
-            self.model.position[1] = ground_height+0.2
-            self.momentum = self.momentum - self.momentum*delta*0.3
+        if self.model.position[1] < ground_height + 0.2:
+            self.model.position[1] = ground_height + 0.2
+            self.momentum = self.momentum - self.momentum * delta * 0.3
 
         else:
             self.momentum[1] = self.momentum[1] + gravity
-            self.momentum = self.momentum - self.momentum*delta*0.1
+            self.momentum = self.momentum - self.momentum * delta * 0.1
+
 
 class Chunk:
     chunk_size = 2
@@ -75,6 +78,7 @@ chunks = []
 player = Player()
 mouse_down_coords = []
 
+
 def handleInput():
     delta = RenderEngine.delta
     global mouse_down_coords
@@ -93,10 +97,10 @@ def handleInput():
         if event.type == MOUSEMOTION and not pygame.mouse.get_visible():
             movement = pygame.mouse.get_rel()
 
-            player.model.rotate(array([0,0, -movement[0] * delta * 0.05]))
-            player.model.rotate(array([movement[1] * delta * 0.05 ,0 ,0]))
+            player.model.rotate(array([0, 0, -movement[0] * delta * 0.05]))
+            player.model.rotate(array([movement[1] * delta * 0.05, 0, 0]))
 
-            pygame.mouse.set_pos([RenderEngine.width/2, RenderEngine.height/2])
+            pygame.mouse.set_pos([RenderEngine.width / 2, RenderEngine.height / 2])
         else:
             pygame.mouse.get_rel()
     keys = pygame.key.get_pressed()
@@ -117,8 +121,11 @@ def handleInput():
         player.model.rotate(array([0, 0, turnspeed * delta]))
     if keys[K_e]:
         player.model.rotate(array([0, 0, -turnspeed * delta]))
-
-
+    if keys[K_KP_PLUS]:
+        RenderEngine.map_zoom_out -= 0.5*delta
+    if keys[K_KP_MINUS]:
+        RenderEngine.map_zoom_out += 0.5*delta
+        print(RenderEngine.map_zoom_out)
 
 
 def hasChunk(x, y):
@@ -128,26 +135,20 @@ def hasChunk(x, y):
 
 
 def update():
-
     player.update()
 
     camera = RenderEngine.camera
     camera_offset = array([0, 2.5, -5])
 
-    #camera.rotation_matrix = MyMath.createRotationMatrix([0, 0, 0])
     camera.rotation_matrix = np.identity(4)
     camera.rotation_matrix = camera.rotation_matrix @ MyMath.createRotationMatrix(array([math.pi / 8, math.pi, 0, 1.0]))
 
     camera.rotation_matrix = camera.rotation_matrix @ np.copy(player.model.rotation_matrix)
 
-    #camera.rotation_matrix = camera.rotation_matrix @ MyMath.createRotationMatrix(array([0, player_rotation[1], 0, 1.0]))
-    #camera.rotate([player_rotation[0], player_rotation[1], player_rotation[2]])
-
     camera_offset = np.append(camera_offset, 1.0)
     camera_offset = camera_offset @ player.model.rotation_matrix
     camera_offset = np.delete(camera_offset, -1)
-    camera.position = player.model.position+camera_offset
-
+    camera.position = player.model.position + camera_offset
 
     light_direction = array([0.9, -0.7, .9])
     light_direction = light_direction / np.linalg.norm(light_direction)
@@ -159,12 +160,10 @@ def update():
 
     forward = array([0, 0, -14, 1.0]) @ camera.rotation_matrix
     x = camera.position[0] + forward[0]
-    z = camera.position[2] +forward[2]
+    z = camera.position[2] + forward[2]
 
     target_point = array([x / Chunk.chunk_size, z / Chunk.chunk_size])
     RenderEngine.update()
-
-
 
     for i in range(len(chunks) - 1, - 1, -1):
         if getDistanceBetween_2D(chunks[i].center_world_pos,
@@ -187,11 +186,9 @@ def update():
     for model in models_needing_update:
         transformed_vertices = np.append(model.vertices, np.ones((len(model.vertices), 1)), axis=1)
 
-
         transformed_vertices = transformed_vertices @ createScaleMatrix(model.scale)
         transformed_vertices = transformed_vertices @ model.rotation_matrix
         transformed_vertices = transformed_vertices + (np.append(model.position, 1.0))
-
 
         transformed_normals = np.append(model.normals, np.ones((len(model.normals), 1)), axis=1)
         transformed_normals = transformed_normals @ model.rotation_matrix
@@ -204,12 +201,13 @@ def update():
             model.transformed_vertices = transformed_vertices
     models_needing_update.clear()
 
+
 def render():
     RenderEngine.render(models, player)
 
 
 def program():
-    #RenderEngine.drawMap(array([int(RenderEngine.width / 2), int(RenderEngine.height / 2)]), 100, array([player.model.position[0], player.model.position[2]]))
+    # RenderEngine.drawMap(array([int(RenderEngine.width / 2), int(RenderEngine.height / 2)]), 100, array([player.model.position[0], player.model.position[2]]))
 
     while run:
         handleInput()
