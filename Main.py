@@ -29,6 +29,7 @@ class Player:
 
         self.crashed = False
         self.crash_time = 0
+        self.thrusting = False
 
 
     def increaseForwardMomentum(self, direction):
@@ -38,6 +39,7 @@ class Player:
         forward_vector = forward_vector @ self.model.rotation_matrix
         forward_vector = np.delete(forward_vector, -1)
         self.momentum += forward_vector
+        self.thrusting = True
 
     def crash(self):
         self.momentum = self.momentum*0.0
@@ -113,6 +115,7 @@ class Player:
 
         self.model.position = self.model.position + self.momentum*delta*10
 
+        self.thrusting = False
 
 class Chunk:
     chunk_size = 2

@@ -1,6 +1,7 @@
 import math
 
 import numpy as np
+import pygame.math
 from numpy import array
 from numpy import sin
 from numpy import cos
@@ -9,6 +10,7 @@ import random
 from pygame.math import clamp
 import MyMath
 from math import pi
+
 
 class Model:
     def __init__(self, position, vertices, colors):
@@ -32,18 +34,17 @@ class Model:
         self.rotation_matrix = self.rotation_matrix @ MyMath.createRotationMatrix(rotation)
 
 
-
 class RawModel:
     def __init__(self, vertices, colors):
         self.vertices = vertices
         self.colors = colors
-
 
     def scale(self, scale):
         new_vertices = np.append(self.vertices, np.ones((len(self.vertices), 1)), axis=1)
         new_vertices = new_vertices @ MyMath.createScaleMatrix(scale)
         new_vertices = np.delete(new_vertices, 3, axis=1)
         self.vertices = new_vertices
+
     def rotate(self, rotation):
         new_vertices = np.append(self.vertices, np.ones((len(self.vertices), 1)), axis=1)
         new_vertices = new_vertices @ MyMath.createRotationMatrix(rotation)
@@ -57,11 +58,14 @@ class RawModel:
         self.vertices = np.vstack([self.vertices, other.vertices])
         self.colors = np.vstack([self.colors, other.colors])
 
+
 def generateTerrainChunkModel(start_x, start_y, size):
     heights = [[0 for x in range(size)] for y in range(size)]
     for y in range(size):
         for x in range(size):
             heights[x][y] = Noise.noiseFunction(start_x + x, start_y + y)
+
+
 
     vertices = np.zeros(shape=(0, 3))
     colors = np.zeros(shape=(0, 3))
@@ -73,27 +77,35 @@ def generateTerrainChunkModel(start_x, start_y, size):
             v2 = np.array([x + 1, heights[x + 1][y + 1], y + 1])
             v3 = np.array([x, heights[x][y + 1], y + 1])
 
-            center_height = (v1[1] + v2[1] + v3[1]) / 3
-
-            snow_color = array([236, 255, 253])
-            water_color = array([33, 98, 227]) * ((center_height / 20) + 0.5)
-            grass_color = array([72, 144, 48])
 
             polygon_1 = array([v1, v2, v3])
             polygon_2 = array([v0, v1, v3])
 
-            color = grass_color
+            water_color = array([33, 98, 227])
+            grass_color = array([72, 144, 48])
+
+            stem_colour = array([115, 50, 20])
+            soil_color = array([85, 47, 18])
+            top_colour = array([124, 137, 15])
+
+            ground_color = MyMath.lerp(Noise.noise(0.1*(start_x + x), 0.1*(start_y + y))*1, grass_color, soil_color)
+            snow_color = array([236, 255, 253])
+
+            center_height = (v1[1] + v2[1] + v3[1]) / 3
+            snow_color = MyMath.lerp(pygame.math.clamp(1-(center_height-1.2), 0 , 1), snow_color, ground_color)
+
+            color = ground_color
             if np.amax(polygon_1[:, 1]) <= 0.0:
-                color = water_color
+                color = water_color * ((center_height / 20) + 0.5)
 
             if center_height > 1.2:
                 color = snow_color
             colors = np.vstack([colors, color])
 
             center_height = (v0[1] + v1[1] + v3[1]) / 3
-            color = grass_color
+            color = ground_color
             if np.amax(polygon_2[:, 1]) <= 0.0:
-                color = water_color
+                color = water_color * ((center_height / 20) + 0.5)
 
             if center_height > 1.2:
                 color = snow_color
@@ -106,8 +118,6 @@ def generateTerrainChunkModel(start_x, start_y, size):
 
     stem_h = 0.5
     stem_r = 0.03
-    stem_colour = array([115, 50, 20])
-    top_colour = array([124, 137, 15])
     p = [[-stem_r, stem_h, stem_r], [stem_r, stem_h, stem_r], [0, stem_h, -stem_r],
          [-stem_r, 0, stem_r], [stem_r, 0, stem_r], [0, 0, -stem_r]]
 
@@ -174,6 +184,8 @@ def generateTerrainChunkModel(start_x, start_y, size):
 
     terrain_model = Model(array([start_x, 0.0, start_y]), vertices, colors)
     return terrain_model
+
+
 def generateCylinder(detail_circle, ring_list, radius_list, color_list):
     vertices = np.zeros(shape=(0, 3))
     colors = np.zeros(shape=(0, 3))
@@ -262,8 +274,8 @@ def generateAirplane():
     window_color = array([165, 241, 255])
 
     h_ration = 1.15
-    ring_list = [0.0,  0.2, 0.5, 3.5, 4.0]
-    radius_list = [[0.01, 0.01 * h_ration],[0.2, 0.2 * h_ration], [0.25, 0.4 * h_ration],
+    ring_list = [0.0, 0.2, 0.5, 3.5, 4.0]
+    radius_list = [[0.01, 0.01 * h_ration], [0.2, 0.2 * h_ration], [0.25, 0.4 * h_ration],
                    [0.25, 0.25 * h_ration], [0.1, 0.1 * h_ration]]
 
     raw_model = generateCylinder(9, ring_list, radius_list, body_color)
@@ -311,6 +323,25 @@ def generateAirplane():
     wing1 = generateBox([0.02, 0, 0.15], [0.02, .4, 0.04], [0, 0.0, -0.25], body_color)
     wing1.translate(array([-1.93, 0.02, -2.4]))
     raw_model.add(wing1)
+
+
+    ring_list = [0.0, 0.05, 0.35, 0.6]
+    radius_list = [[0.05, 0.05], [0.20, 0.20 ], [0.15, 0.15], [0.10, 0.10]]
+    engine1 = generateCylinder(6, ring_list, radius_list, wing_color)
+    engine1.rotate([math.pi/2, 0, 0])
+    engine1.translate(array([-0.73, -0.30, -1.95]))
+    for i in range(len(engine1.vertices)):
+        if engine1.vertices[i][2] < -2.5:
+            engine1.colors[int(i / 3)] = body_color
+    raw_model.add(engine1)
+
+    engine2 = generateCylinder(6, ring_list, radius_list, wing_color)
+    engine2.rotate([math.pi/2, 0, 0])
+    engine2.translate(array([0.73, -0.30, -1.95]))
+    for i in range(len(engine2.vertices)):
+        if engine2.vertices[i][2] < -2.5:
+            engine2.colors[int(i / 3)] = body_color
+    raw_model.add(engine2)
 
     raw_model.scale(array([0.5, 0.5, 0.5]))
 
