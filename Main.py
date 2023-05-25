@@ -19,6 +19,7 @@ class Player:
     def __init__(self):
 
         self.model = Models.generateAirplane()
+        self.flame_model = Models.generateAirplaneFlames()
         self.model.position[1] = 6
         self.model.position[0] = 5645
         self.model.position[2] = 4567868
@@ -76,7 +77,6 @@ class Player:
 
 
         self.momentum = self.momentum + lift_vector
-        print(self.momentum[1])
 
         ground_height = Noise.noiseFunction(self.model.position[0], self.model.position[2])
         if self.model.position[1] < ground_height + 0.2:
@@ -115,6 +115,13 @@ class Player:
 
         self.model.position = self.model.position + self.momentum*delta*10
 
+
+        if self.thrusting:
+            models.append(self.flame_model)
+            models_needing_update.append(self.flame_model)
+            self.flame_model.position = self.model.position
+            flame_flicker = 0.01
+            self.flame_model.rotation_matrix = self.model.rotation_matrix @ MyMath.createRotationMatrix([random.uniform(-flame_flicker, flame_flicker), random.uniform(-flame_flicker, flame_flicker),random.uniform(-flame_flicker, flame_flicker)])
         self.thrusting = False
 
 class Chunk:
@@ -146,7 +153,7 @@ camera_offset_angle = array([0.0,0.0])
 def handleInput():
     delta = RenderEngine.delta
     global mouse_down_coords
-    turnspeed = 2.5
+    turnspeed = 1.5
     global camera_offset_angle
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -164,9 +171,9 @@ def handleInput():
             camera_offset_angle[1] = 0
         if event.type == MOUSEMOTION and pygame.mouse.get_pressed()[0] and not player.crashed:
             movement = pygame.mouse.get_rel()
-
-            player.model.rotate(array([0, 0, -movement[0] * delta * 0.05]))
-            player.model.rotate(array([movement[1] * delta * 0.05, 0, 0]))
+            max_move = 40
+            player.model.rotate(array([0, 0,pygame.math.clamp( -movement[0], -max_move, max_move) * delta * 0.05]))
+            player.model.rotate(array([pygame.math.clamp( movement[1], -max_move,max_move) * delta * 0.05, 0, 0]))
 
             pygame.mouse.set_pos([RenderEngine.width / 2, RenderEngine.height / 2])
         elif event.type == MOUSEMOTION and pygame.mouse.get_pressed()[2]:
@@ -286,11 +293,11 @@ def update():
 
 def render():
     RenderEngine.render(models, player)
+    if models.__contains__(player.flame_model):
+        models.remove(player.flame_model)
 
 
 def program():
-    # RenderEngine.drawMap(array([int(RenderEngine.width / 2), int(RenderEngine.height / 2)]), 100, array([player.model.position[0], player.model.position[2]]))
-
     while run:
         handleInput()
         update()

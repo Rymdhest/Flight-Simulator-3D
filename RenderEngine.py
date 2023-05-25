@@ -58,8 +58,8 @@ def render(models, player):
     polygons = []
     day_color = array([178, 255, 255])
     night_color = array([11, 16, 38])
-    time_factor = ((math.sin(time.time()) + 1) * 0.5)
-    sky_color = MyMath.lerp(time_factor, day_color, night_color)
+    time_factor = ((math.sin(time.time()*0.05) + 1) * 0.5)
+    sky_color = MyMath.lerp(time_factor, night_color, day_color)
 
     viewport = pygame.Rect(0, 0, display.get_width(), display.get_height())
 
@@ -93,7 +93,7 @@ def render(models, player):
         color[2] = pygame.math.clamp(color[2], 0, 255)
 
         pygame.draw.polygon(display, color, polygon.vertices)
-        # pygame.gfxdraw.filled_polygon(display, polygon.vertices, polygon.color,)
+        #pygame.gfxdraw.filled_polygon(display, polygon.vertices, polygon.color,)
 
     drawMap(array([int(width / 2), int(height)]), player)
 

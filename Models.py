@@ -347,3 +347,32 @@ def generateAirplane():
 
     plane = Model(array([0, 0, 0]), raw_model.vertices, raw_model.colors)
     return plane
+
+def generateAirplaneFlames():
+    flames_color_1 = array([255, 219, 1])
+    flames_color_2 = array([178, 34, 34])
+
+    ring_list = [0.0, 0.33, 0.66, 1.0]
+    radius_list = [[0.05, 0.05], [0.10, 0.10 ], [0.15, 0.15], [0.18, 0.18]]
+    raw_model = generateCylinder(6, ring_list, radius_list, flames_color_1)
+    for i in range(len(raw_model.vertices)):
+        raw_model.colors[int(i / 3)] = MyMath.lerp(raw_model.vertices[i][1], flames_color_1, flames_color_2)
+    raw_model.rotate([math.pi/2, 0, 0])
+    raw_model.translate(array([-0.73, -0.30, -2.495]))
+
+    raw_model2 = generateCylinder(6, ring_list, radius_list, flames_color_1)
+    for i in range(len(raw_model2.vertices)):
+        raw_model2.colors[int(i / 3)] = MyMath.lerp(raw_model2.vertices[i][1], flames_color_1, flames_color_2)
+    raw_model2.rotate([math.pi/2, 0, 0])
+    raw_model2.translate(array([0.73, -0.30, -2.495]))
+    raw_model.add(raw_model2)
+
+
+
+
+    raw_model.scale(array([0.5, 0.5, 0.5]))
+
+
+
+    flames = Model(array([0, 0, 0]), raw_model.vertices, raw_model.colors)
+    return flames
