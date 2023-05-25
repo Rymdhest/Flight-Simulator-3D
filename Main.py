@@ -25,14 +25,24 @@ class Player:
         self.model.position[2] = 4567868
         models_needing_update.append(self.model)
         models.append(self.model)
-
+        self.target_model = Models.generateFlag()
+        models.append(self.target_model)
+        self.generateNewTarget()
         self.momentum = array([0.0, 0.0, 0.0])
-
         self.crashed = False
         self.crash_time = 0
         self.thrusting = False
 
-
+    def generateNewTarget(self):
+        range = 200
+        self.target_model.position[0] = random.uniform(-range, range)+self.model.position[0]
+        self.target_model.position[2] = random.uniform(-range, range)+self.model.position[2]
+        self.target_model.position[1] = Noise.noiseFunction(self.target_model.position[0], self.target_model.position[2])
+        while self.target_model.position[1] < 0:
+            self.target_model.position[0] = random.uniform(-range, range)+self.model.position[0]
+            self.target_model.position[2] = random.uniform(-range, range)+self.model.position[2]
+            self.target_model.position[1] = Noise.noiseFunction(self.target_model.position[0], self.target_model.position[2])
+        models_needing_update.append(self.target_model)
     def increaseForwardMomentum(self, direction):
         thrust_power = 0.035
         amount = thrust_power * direction * RenderEngine.delta
@@ -44,14 +54,17 @@ class Player:
 
     def crash(self):
         self.momentum = self.momentum*0.0
+        self.crash_time = 0
         self.crashed = True
-
-
+    def resurrect(self):
+        self.crashed = False
+        self.model.vertices = Models.generateAirplane().vertices
+        models_needing_update.append(self.model)
     def update(self):
         if self.crashed:
             self.crash_time += RenderEngine.delta*70.0
             random.seed(1337)
-            explode_amount = (1 / (self.crash_time ** 2)) * 20
+            explode_amount = (1 / (self.crash_time))
             for i in range(int(len(self.model.vertices) / 3)):
 
                 rand1 = random.uniform(-1.0, 1.0) * explode_amount
@@ -64,6 +77,9 @@ class Player:
 
             models_needing_update.append(self.model)
             return
+
+        if MyMath.getDistanceBetween_3D(self.target_model.position, self.model.position) < 2.0:
+            self.generateNewTarget()
         delta = RenderEngine.delta
         gravity = -0.09 * delta
         air_pressure = ((-self.model.position[1] ** 3) * 0.001 + 1)
@@ -72,7 +88,6 @@ class Player:
         lift_vector = array([0.0, speed * lift_power * delta, 0.0, 1.0])
         lift_vector = lift_vector @ self.model.rotation_matrix
         lift_vector = np.delete(lift_vector, -1)
-
 
 
 
@@ -159,6 +174,9 @@ def handleInput():
         if event.type == pygame.QUIT:
             global run
             run = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == K_y:
+                player.resurrect()
 
         if event.type == MOUSEBUTTONDOWN:
             pygame.mouse.set_visible(False)
@@ -171,17 +189,18 @@ def handleInput():
             camera_offset_angle[1] = 0
         if event.type == MOUSEMOTION and pygame.mouse.get_pressed()[0] and not player.crashed:
             movement = pygame.mouse.get_rel()
+            pygame.mouse.set_pos(RenderEngine.width/2, RenderEngine.height/2)
+            pygame.mouse.get_rel()
             max_move = 40
             player.model.rotate(array([0, 0,pygame.math.clamp( -movement[0], -max_move, max_move) * delta * 0.05]))
             player.model.rotate(array([pygame.math.clamp( movement[1], -max_move,max_move) * delta * 0.05, 0, 0]))
 
-            pygame.mouse.set_pos([RenderEngine.width / 2, RenderEngine.height / 2])
         elif event.type == MOUSEMOTION and pygame.mouse.get_pressed()[2]:
             movement = pygame.mouse.get_rel()
-
+            pygame.mouse.set_pos(RenderEngine.width/2, RenderEngine.height/2)
+            pygame.mouse.get_rel()
             camera_offset_angle[0] += movement[0]*delta*0.05
             camera_offset_angle[1] -= movement[1]*delta*0.05
-            print(camera_offset_angle)
         else:
             pygame.mouse.get_rel()
     keys = pygame.key.get_pressed()

@@ -12,6 +12,7 @@ near_plane = 0.1
 width = 2000
 height = 1000
 icon = pygame.image.load("icon_32.png")
+flag_icon = pygame.image.load("flag.png")
 pygame.display.set_icon(icon)
 display = pygame.display.set_mode(size=(width, height))
 
@@ -62,7 +63,7 @@ def render(models, player):
     sky_color = MyMath.lerp(time_factor, night_color, day_color)
 
     viewport = pygame.Rect(0, 0, display.get_width(), display.get_height())
-
+    dpeth_map = pygame.Surface((width, height))
     display.fill(sky_color, rect=viewport)
 
     for model in models:
@@ -78,7 +79,6 @@ def render(models, player):
                 polygons.append(Polygon_2D(vertices, model.last_calculated_colors[i], depth))
 
     polygons.sort(key=lambda x: x.depth, reverse=True)
-
     for polygon in polygons:
         # inverterat y-axeln
         polygon.vertices[0][1] = height - polygon.vertices[0][1]
@@ -93,9 +93,12 @@ def render(models, player):
         color[2] = pygame.math.clamp(color[2], 0, 255)
 
         pygame.draw.polygon(display, color, polygon.vertices)
+        #pygame.draw.polygon(dpeth_map, [polygon.depth*5, polygon.depth*5, polygon.depth*5], polygon.vertices)
         #pygame.gfxdraw.filled_polygon(display, polygon.vertices, polygon.color,)
 
     drawMap(array([int(width / 2), int(height)]), player)
+
+    #display.blit(dpeth_map, (0,0))
 
     pygame.display.update()
 
@@ -121,7 +124,7 @@ map_resolution = 120
 surface = pygame.Surface((map_resolution, map_resolution))
 i = 9999999
 player_map_position = []
-map_zoom_out = 0.5
+map_zoom_out = 1.0
 
 
 def drawMap(position_screen, player):
@@ -163,6 +166,12 @@ def drawMap(position_screen, player):
     display.blit(rotated_image,
                  (position_screen[0] + map_resolution / 2 - icon.get_size()[0] / 2 - r,
                   position_screen[1] - map_resolution / 2 - icon.get_size()[1] / 2))
+
+    flag_dx = pygame.math.clamp(player.target_model.position[0]-player.model.position[0],-map_resolution/2, map_resolution/2)
+    flag_dz = pygame.math.clamp(player.target_model.position[2]-player.model.position[2],-map_resolution/2, map_resolution/2)
+    display.blit(flag_icon,
+                 (position_screen[0] + map_resolution / 2 - r + flag_dx,
+                  position_screen[1] - map_resolution / 2 - flag_icon.get_size()[1] + flag_dz))
 
 
 def fromWorldToScreen(point_3D):

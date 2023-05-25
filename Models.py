@@ -162,7 +162,7 @@ def generateTerrainChunkModel(start_x, start_y, size):
                 y_world = y + random.uniform(0, 1)
                 value = Noise.noise((x) * 0.02137, (y) * 0.02137)
                 value = pow(abs(value), 1.4)
-                if value < 1.2 - random.uniform(0, 0.95):
+                if value < 1.2 - random.uniform(0, 0.98):
                     continue
                 v0 = np.array([x, heights[x][y], y])
                 v1 = np.array([x + 1, heights[x + 1][y], y])
@@ -345,6 +345,7 @@ def generateAirplane():
 
     raw_model.scale(array([0.5, 0.5, 0.5]))
 
+    #raw_model = generateCylinder(6, ring_list, radius_list, wing_color)
     plane = Model(array([0, 0, 0]), raw_model.vertices, raw_model.colors)
     return plane
 
@@ -376,3 +377,21 @@ def generateAirplaneFlames():
 
     flames = Model(array([0, 0, 0]), raw_model.vertices, raw_model.colors)
     return flames
+
+def generateFlag():
+    pole_color = array([255, 0, 0])
+    flag_color = array([178, 34, 34])
+    pole_r = 0.03
+    pole_height = 3.0
+    flag_size = 0.3
+
+    ring_list = [0.0, pole_height]
+    radius_list = [[pole_r, pole_r], [pole_r, pole_r]]
+    raw_model = generateCylinder(8, ring_list, radius_list, pole_color)
+
+    flag = generateBox([flag_size*1.3, flag_size, 0.03], [flag_size*1.3, flag_size, 0.03], [0, 0.0, 0], flag_color)
+    #flag = generateBox([0.02, 0, 0.25], [0.02, .4, 0.08], [0, 0.0, 0], flag_color)
+    flag.translate(array([flag_size*1.3, pole_height-flag_size, 0]))
+    raw_model.add(flag)
+
+    return Model(array([0,0,0]), raw_model.vertices, raw_model.colors)
