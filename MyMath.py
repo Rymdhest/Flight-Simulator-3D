@@ -24,8 +24,7 @@ def createViewMatrix(camera):
     return matrix
 
 
-def createProjectionMatrix(near_plane, far_plane, width, height):
-    field_of_view = math.pi / 2  # 90 grader
+def createProjectionMatrix(near_plane, far_plane, width, height, field_of_view):
     aspect_ratio = width / height
     y_scale = 1 / np.arctan(field_of_view / 2)
     x_scale = y_scale / aspect_ratio
@@ -75,19 +74,3 @@ def getDistanceBetween_2D(p1, p2):
     return math.sqrt(dx * dx + dy * dy)
 
 
-def rotation_matrix_to_euler(R):
-
-    sy = math.sqrt(R[0, 0] * R[0, 0] + R[1, 0] * R[1, 0])
-
-    singular = sy < 1e-6
-
-    if not singular:
-        x = math.atan2(R[2, 1], R[2, 2])
-        y = math.atan2(-R[2, 0], sy)
-        z = math.atan2(R[1, 0], R[0, 0])
-    else:
-        x = math.atan2(-R[1, 2], R[1, 1])
-        y = math.atan2(-R[2, 0], sy)
-        z = 0
-
-    return np.array([x, y, z])

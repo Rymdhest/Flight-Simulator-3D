@@ -43,12 +43,14 @@ class Camera:
 camera = Camera()
 
 view_matrix = MyMath.createViewMatrix(camera)
-projection_matrix = MyMath.createProjectionMatrix(near_plane, far_plane, display.get_width(), display.get_height())
+projection_matrix = MyMath.createProjectionMatrix(near_plane, far_plane, display.get_width(), display.get_height(), math.pi / 2)
 
 
-def update():
+def update(player):
     global view_matrix
+    global projection_matrix
     view_matrix = MyMath.createViewMatrix(camera)
+    projection_matrix = MyMath.createProjectionMatrix(near_plane, far_plane, display.get_width(), display.get_height(), (math.pi / 3+2.5*np.linalg.norm(player.momentum)))
     calcDelta()
 
 
