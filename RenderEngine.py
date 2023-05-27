@@ -9,8 +9,8 @@ import time
 
 far_plane = 20
 near_plane = 0.1
-width = 2000
-height = 1000
+width = 2400
+height = 1300
 icon = pygame.image.load("icon_32.png")
 flag_icon = pygame.image.load("flag.png")
 pygame.display.set_icon(icon)
@@ -21,7 +21,7 @@ last_frame_time = time.time()
 last_second_time = time.time()
 frames_current_second = 0
 frames_last_second = 0
-
+render_map = False
 
 class Polygon_2D:
     def __init__(self, vertices, color, depth):
@@ -96,7 +96,8 @@ def render(models, player):
         #pygame.draw.polygon(dpeth_map, [polygon.depth*5, polygon.depth*5, polygon.depth*5], polygon.vertices)
         #pygame.gfxdraw.filled_polygon(display, polygon.vertices, polygon.color,)
 
-    drawMap(array([int(width / 2), int(height)]), player)
+    if render_map:
+        drawMap(array([int(width / 2), int(height)]), player)
 
     #display.blit(dpeth_map, (0,0))
 

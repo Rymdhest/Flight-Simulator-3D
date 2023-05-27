@@ -186,28 +186,28 @@ def generateTerrainChunkModel(start_x, start_y, size):
     return terrain_model
 
 
-def generateCylinder(detail_circle, ring_list, radius_list, color_list):
+def generateCylinder(polygons_per_circle, ring_list, radius_list, color_list):
     vertices = np.zeros(shape=(0, 3))
     colors = np.zeros(shape=(0, 3))
     for layer in range(len(ring_list) - 1):
-        for circle in range(detail_circle):
-            x1 = sin(2 * math.pi * (circle / detail_circle)) * radius_list[layer][0]
-            z1 = cos(2 * math.pi * (circle / detail_circle)) * radius_list[layer][1]
+        for circle in range(polygons_per_circle):
+            x1 = sin(2 * math.pi * (circle / polygons_per_circle)) * radius_list[layer][0]
+            z1 = cos(2 * math.pi * (circle / polygons_per_circle)) * radius_list[layer][1]
             y1 = ring_list[layer]
             p1 = array([x1, y1, z1])
 
-            x2 = sin(2 * math.pi * ((circle + 1) / detail_circle)) * radius_list[layer][0]
-            z2 = cos(2 * math.pi * ((circle + 1) / detail_circle)) * radius_list[layer][1]
+            x2 = sin(2 * math.pi * ((circle + 1) / polygons_per_circle)) * radius_list[layer][0]
+            z2 = cos(2 * math.pi * ((circle + 1) / polygons_per_circle)) * radius_list[layer][1]
             y2 = ring_list[layer]
             p2 = array([x2, y2, z2])
 
-            x3 = sin(2 * math.pi * ((circle + 1) / detail_circle)) * radius_list[layer + 1][0]
-            z3 = cos(2 * math.pi * ((circle + 1) / detail_circle)) * radius_list[layer + 1][1]
+            x3 = sin(2 * math.pi * ((circle + 1) / polygons_per_circle)) * radius_list[layer + 1][0]
+            z3 = cos(2 * math.pi * ((circle + 1) / polygons_per_circle)) * radius_list[layer + 1][1]
             y3 = ring_list[layer + 1]
             p3 = array([x3, y3, z3])
 
-            x4 = sin(2 * math.pi * (circle / detail_circle)) * radius_list[layer + 1][0]
-            z4 = cos(2 * math.pi * (circle / detail_circle)) * radius_list[layer + 1][1]
+            x4 = sin(2 * math.pi * (circle / polygons_per_circle)) * radius_list[layer + 1][0]
+            z4 = cos(2 * math.pi * (circle / polygons_per_circle)) * radius_list[layer + 1][1]
             y4 = ring_list[layer + 1]
             p4 = array([x4, y4, z4])
 
@@ -345,7 +345,6 @@ def generateAirplane():
 
     raw_model.scale(array([0.5, 0.5, 0.5]))
 
-    #raw_model = generateCylinder(6, ring_list, radius_list, wing_color)
     plane = Model(array([0, 0, 0]), raw_model.vertices, raw_model.colors)
     return plane
 
@@ -390,7 +389,6 @@ def generateFlag():
     raw_model = generateCylinder(8, ring_list, radius_list, pole_color)
 
     flag = generateBox([flag_size*1.3, flag_size, 0.03], [flag_size*1.3, flag_size, 0.03], [0, 0.0, 0], flag_color)
-    #flag = generateBox([0.02, 0, 0.25], [0.02, .4, 0.08], [0, 0.0, 0], flag_color)
     flag.translate(array([flag_size*1.3, pole_height-flag_size, 0]))
     raw_model.add(flag)
 

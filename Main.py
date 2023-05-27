@@ -21,8 +21,9 @@ class Player:
         self.model = Models.generateAirplane()
         self.flame_model = Models.generateAirplaneFlames()
         self.model.position[1] = 6
-        self.model.position[0] = 5645
-        self.model.position[2] = 4567868
+        range = 9999
+        self.model.position[0] = random.uniform(-range, range)
+        self.model.position[2] = random.uniform(-range, range)
         models_needing_update.append(self.model)
         models.append(self.model)
         self.target_model = Models.generateFlag()
@@ -101,20 +102,6 @@ class Player:
                 self.crash()
             self.momentum[1] = 0
             self.momentum = self.momentum - self.momentum * delta * 0.35
-            plane_length = 2.0
-            back =  np.delete( (np.array([0.0 ,0.0, -plane_length, 1.0])) @ self.model.rotation_matrix, -1)
-            back_height = Noise.noiseFunction(self.model.position[0]+ back[0], self.model.position[2]+ back[2])
-            back[1] = back_height
-            p1 = player.model.position
-            p2 = back+player.model.position
-            angle = -np.arcsin((p2[1]-p1[1]) / (np.linalg.norm(p2-p1)))*1.0
-            if angle > math.pi:
-                angle = angle-math.pi*2
-
-            #player.model.rotate([angle,0,0])
-
-            #print(ground_height)
-            #print(back_height)
 
         else:
             self.momentum[1] = self.momentum[1] + gravity
@@ -177,6 +164,12 @@ def handleInput():
         if event.type == pygame.KEYDOWN:
             if event.key == K_y:
                 player.resurrect()
+        if event.type == pygame.KEYDOWN:
+            if event.key == K_m:
+                if RenderEngine.render_map:
+                    RenderEngine.render_map = False
+                else:
+                    RenderEngine.render_map = True
 
         if event.type == MOUSEBUTTONDOWN:
             pygame.mouse.set_visible(False)
